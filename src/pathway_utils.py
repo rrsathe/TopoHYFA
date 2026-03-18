@@ -1,7 +1,7 @@
-from Bio.KEGG import REST
-import numpy as np
 from pathlib import Path
 
+import numpy as np
+from Bio.KEGG import REST
 
 ######################################
 # Utilities to retrieve KEGG patways #
@@ -26,7 +26,7 @@ def get_pathway_info(pathway):
     drugs = set()
     for line in pathway_file.rstrip().split("\n"):
         section = line[:12].strip()  # section names are within 12 columns
-        if not section == "":
+        if section != "":
             current_section = section
 
         if current_section == "DISEASE":
@@ -41,7 +41,7 @@ def get_pathway_info(pathway):
                 gene_id, gene_symbol = gene_identifiers.split()
                 gene_symbols.add(gene_symbol)
             except ValueError:
-                print("WARNING: No gene found in {}".format(line[12:]))
+                print(f"WARNING: No gene found in {line[12:]}")
 
     return gene_symbols, diseases, drugs
 
@@ -106,6 +106,6 @@ def load_pathway_mask(gene_symbols, key="signaling"):
     with open(filename, "wb") as f:
         np.save(f, np.array(gene_mask))
 
-    print('Selected {}/{} genes associated to "{}"'.format(gene_mask.sum(), len(gene_symbols), key))
+    print(f'Selected {gene_mask.sum()}/{len(gene_symbols)} genes associated to "{key}"')
 
     return gene_mask

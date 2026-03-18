@@ -42,7 +42,7 @@ def MLP(
 
     modules = []
     prev_dim = in_dim
-    for n in range(n_layers):
+    for _n in range(n_layers):
         block = []
         block.append(nn.Linear(prev_dim, h_dim))
         block.append(act_fn)

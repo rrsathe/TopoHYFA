@@ -4,7 +4,8 @@ Encoders mapping genes to metagenes
 
 import torch
 import torch.nn as nn
-from src.hnn_utils import *
+
+from src.hnn_utils import meshgrid_2d
 
 
 class PlainEncoder(torch.nn.Module):
@@ -27,7 +28,7 @@ class AttentionEncoder(torch.nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, metagene_params, d_gene):
-        super(AttentiveEncoder, self).__init__()
+        super().__init__()
         self.gene_params = nn.Parameter(nn.init.xavier_uniform_(torch.zeros((in_dim, d_gene))))
         self.metagene_params = metagene_params
         d_metagene = metagene_params.shape[-1]

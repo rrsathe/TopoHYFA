@@ -1,7 +1,7 @@
-import seaborn as sns
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 
 def plot_library_sizes(adata_v9, ct_key="Broad cell type"):
@@ -49,7 +49,7 @@ def enr_barplot(
     def isfloat(x):
         try:
             float(x)
-        except:
+        except Exception:
             return False
         else:
             return True
@@ -86,12 +86,12 @@ def enr_barplot(
         # check if any values in `df[colname]` can't be coerced to floats
         can_be_coerced = df[colname].map(isfloat)
         if np.sum(~can_be_coerced) > 0:
-            raise ValueError("some value in %s could not be typecast to `float`" % colname)
+            raise ValueError(f"some value in {colname} could not be typecast to `float`")
         else:
             df.loc[:, colname] = df[colname].map(float)
         df = df[df[colname] <= cutoff]
         if len(df) < 1:
-            msg = "Warning: No enrich terms using library %s when cutoff = %s" % (title, cutoff)
+            msg = f"Warning: No enrich terms using library {title} when cutoff = {cutoff}"
             return msg
         df = df.assign(logAP=lambda x: -x[colname].apply(np.log10))
         colname = "logAP"
@@ -100,13 +100,10 @@ def enr_barplot(
     # create bar plot
 
     if ax is None:
-        ax = fig.add_subplot(111)
+        fig, ax = plt.subplots(figsize=figsize)
     bar = dd.plot.barh(x="Term", y=colname, color=color, alpha=0.75, fontsize=12, ax=ax)
 
-    if column in ["Adjusted P-value", "P-value"]:
-        xlabel = "-log$_{10}$(%s)" % column
-    else:
-        xlabel = column
+    xlabel = f"-log$_{{10}}$({column})" if column in ["Adjusted P-value", "P-value"] else column
     bar.set_xlabel(xlabel, fontsize=12)
     bar.set_ylabel("")
     bar.set_title(title, fontsize=12, fontweight="bold")

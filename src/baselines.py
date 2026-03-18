@@ -1,7 +1,7 @@
-from sklearn.linear_model import LinearRegression
+import numpy as np
 from sklearn.decomposition import TruncatedSVD
 from sklearn.impute import KNNImputer, SimpleImputer
-import numpy as np
+from sklearn.linear_model import LinearRegression
 
 
 def PCA_linear_regression_baseline(

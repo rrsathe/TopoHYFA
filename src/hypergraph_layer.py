@@ -4,9 +4,8 @@ Defines hypergraph layer
 
 import torch
 import torch.nn as nn
-from src.hnn_utils import *
-from src.metagene_encoders import *
-from src.metagene_decoders import *
+
+from src.hnn_utils import MLP, message_aggregation, scatter_softmax
 
 
 class GATHypergraphLayer(torch.nn.Module):
@@ -49,10 +48,10 @@ class GATHypergraphLayer(torch.nn.Module):
         # Compute dynamic/static feature dims
         dynamic_feature_dim = 0
         static_feature_dim = 0
-        for k, v in dynamic_node_types.items():
+        for _k, v in dynamic_node_types.items():
             n, dim = v
             dynamic_feature_dim += dim
-        for k, v in static_node_types.items():
+        for _k, v in static_node_types.items():
             n, dim = v
             static_feature_dim += dim
         total_feature_dim = static_feature_dim + dynamic_feature_dim
@@ -194,7 +193,7 @@ class GATHypergraphLayer(torch.nn.Module):
         messages = torch.reshape(messages, (messages.shape[0], self.n_heads, -1))
 
         aggregated_messages = {}
-        for k in dynamic_node_features_e.keys():
+        for k in dynamic_node_features_e:
             # Get attention coefficients for node type k
             idxs = hyperedge_index[k]  # Softmax over all incoming messages
             softmax_idxs = idxs
@@ -228,7 +227,7 @@ class GATHypergraphLayer(torch.nn.Module):
         :param message_updates: Aggregated messages. Shape=(nb_individuals, message_dim)
         :return: Node feature updates (currently individuals only). Shape=(nb_individuals, d_patient)
         """
-        for k in dynamic_node_features.keys():
+        for k in dynamic_node_features:
             h = torch.cat((dynamic_node_features[k], message_updates[k]), dim=-1)
             dynamic_node_features[k] = self.dynamic_node_mlp[k](h)
 
@@ -295,10 +294,10 @@ class MPNNHypergraphLayer(torch.nn.Module):
         # Compute dynamic/static feature dims
         dynamic_feature_dim = 0
         static_feature_dim = 0
-        for k, v in dynamic_node_types.items():
+        for _k, v in dynamic_node_types.items():
             n, dim = v
             dynamic_feature_dim += dim
-        for k, v in static_node_types.items():
+        for _k, v in static_node_types.items():
             n, dim = v
             static_feature_dim += dim
         total_feature_dim = static_feature_dim + dynamic_feature_dim
@@ -424,7 +423,7 @@ class MPNNHypergraphLayer(torch.nn.Module):
         :return: Aggregated messages. Shape=(nb_individuals, message_dim)
         """
         aggregated_messages = {}
-        for k in dynamic_node_features_e.keys():
+        for k in dynamic_node_features_e:
             # Aggregate messages
             m = message_aggregation(
                 messages=messages,
@@ -447,7 +446,7 @@ class MPNNHypergraphLayer(torch.nn.Module):
         :param message_updates: Aggregated messages. Shape=(nb_individuals, message_dim)
         :return: Node feature updates (currently individuals only). Shape=(nb_individuals, d_patient)
         """
-        for k in dynamic_node_features.keys():
+        for k in dynamic_node_features:
             h = torch.cat((dynamic_node_features[k], message_updates[k]), dim=-1)
             dynamic_node_features[k] = self.dynamic_node_mlp[k](h)
 

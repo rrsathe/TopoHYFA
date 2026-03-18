@@ -1,10 +1,12 @@
-import scanpy as sc
-import numpy as np
 from collections import Counter
-from src.data_utils import *
-from src.train_utils import *
-from src.distributions import *
+
+import numpy as np
+import scanpy as sc
 import torch
+
+from src.data_utils import map_to_ids, select_obs
+from src.distributions import ZeroInflatedNegativeBinomial
+from src.train_utils import decode, encode
 
 # =================================
 # Load GTEx v9 data
@@ -77,7 +79,7 @@ def select_genes(
             adata_v8 = adata_v8[:, mask]
         adata_v9 = adata_v9[:, mask]
     else:
-        raise ValueError("Unknown strategy {}".format(strategy))
+        raise ValueError(f"Unknown strategy {strategy}")
     return adata_v8, adata_v9
 
 
@@ -182,7 +184,7 @@ def infer_signatures(d, model, device, inference_mode="mean", generative_mode="s
                 "Participant ID"
             ]["mu"]
         else:
-            raise ValueError("Inference mode {} not understood".format(generative_mode))
+            raise ValueError(f"Inference mode {generative_mode} not understood")
         node_features_ = (dynamic_node_features_, static_node_features)
 
         # Compute signatures
@@ -201,7 +203,7 @@ def infer_signatures(d, model, device, inference_mode="mean", generative_mode="s
         elif generative_mode == "dropout":
             x_pred = torch.exp(out["px_dropout"]) / (1 + torch.exp(out["px_dropout"]))
         else:
-            raise ValueError("Generative mode {} not understood".format(generative_mode))
+            raise ValueError(f"Generative mode {generative_mode} not understood")
 
     inferred_signatures = x_pred.cpu().numpy()
     return inferred_signatures

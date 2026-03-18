@@ -4,8 +4,8 @@ Decoders mapping metagenes to genes
 
 import torch
 import torch.nn as nn
-from src.hnn_utils import *
 from torch.distributions import Normal
+
 from src.losses import graph_laplacian_regularization
 
 
@@ -28,7 +28,7 @@ class PlainDecoder(torch.nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, hidden_dim=128):
-        super(PlainDecoder, self).__init__()
+        super().__init__()
         # self.px_decoder = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.ReLU())
 
         self.px_rate_decoder = nn.Sequential(nn.Linear(in_dim, out_dim))
@@ -61,7 +61,7 @@ class PoissonDecoder(torch.nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, hidden_dim=128):
-        super(PoissonDecoder, self).__init__()
+        super().__init__()
         self.px_decoder = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.ReLU())
 
         self.px_scale_decoder = nn.Sequential(
@@ -121,7 +121,7 @@ class NegativeBinomialDecoder(torch.nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, hidden_dim=128):
-        super(NegativeBinomialDecoder, self).__init__()
+        super().__init__()
         self.px_decoder = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.ReLU())
 
         self.px_scale_decoder = nn.Sequential(
@@ -186,7 +186,7 @@ class ZeroInflatedNegativeBinomialDecoder(torch.nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, hidden_dim=128):
-        super(ZeroInflatedNegativeBinomialDecoder, self).__init__()
+        super().__init__()
         self.px_decoder = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.ReLU())
 
         self.px_scale_decoder = nn.Sequential(

@@ -3,13 +3,13 @@ Train/eval loops
 """
 
 import time
-from typing import Any, Callable, Dict, Optional, Tuple
+from collections.abc import Callable
+from typing import Any, cast
 
 import torch
 from scipy.stats import pearsonr
 from torch.cuda.amp import GradScaler, autocast
-from torch.distributions import Normal
-from torch.distributions import kl_divergence as kl
+from torch.distributions import Normal, kl_divergence as kl
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -23,8 +23,8 @@ from src.losses import (
 
 
 def _get_decoder_gene_weights(
-    model: Optional[torch.nn.Module], out: Dict[str, Any]
-) -> Optional[torch.Tensor]:
+    model: torch.nn.Module | None, out: dict[str, Any]
+) -> torch.Tensor | None:
     """
     Resolve the decoder matrix mapping latent/metagene features to genes.
     """
@@ -49,8 +49,8 @@ def train(
     config: Any,
     model: torch.nn.Module,
     loader: DataLoader,
-    val_loader: Optional[DataLoader],
-    epochs: Optional[int] = None,
+    val_loader: DataLoader | None,
+    epochs: int | None = None,
     use_wandb: bool = True,
     **kwargs,
 ) -> None:
@@ -68,8 +68,8 @@ def train(
 
     runtime_kwargs = {**kwargs}
     runtime_kwargs.pop("device", None)
-    laplacian_matrix = runtime_kwargs.get("laplacian_matrix", None)
-    adjacency_matrix = runtime_kwargs.get("adjacency_matrix", None)
+    laplacian_matrix = runtime_kwargs.get("laplacian_matrix")
+    adjacency_matrix = runtime_kwargs.get("adjacency_matrix")
     if laplacian_matrix is None and adjacency_matrix is not None:
         laplacian_matrix = compute_laplacian(adjacency_matrix.to(device))
     if laplacian_matrix is not None:
@@ -88,7 +88,7 @@ def train(
     best_loss = float("inf")
     patience = 10
     no_improve = 0
-    val_losses: Dict[str, float] = {}
+    val_losses: dict[str, float] = {}
 
     with tqdm(range(epochs), desc="Training") as pbar:
         for epoch in pbar:
@@ -147,7 +147,7 @@ def train_step(
     optimiser: torch.optim.Optimizer,
     loader: DataLoader,
     **kwargs,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Performs one training step (i.e. one epoch)
     :param model: Model to train
@@ -157,7 +157,7 @@ def train_step(
     :return: epoch's train loss
     """
     model.train()
-    losses_all = {}
+    losses_all: dict[str, float] = {}
     total_samples = 0
     step_kwargs = {**kwargs}
     device = step_kwargs.pop("device", next(model.parameters()).device)
@@ -208,7 +208,7 @@ def train_step(
     return out_losses
 
 
-def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> Dict[str, float]:
+def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> dict[str, float]:
     """
     Performs evaluation step
     :param model: Model to evaluate
@@ -218,7 +218,7 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> Dict[str,
     :return: losses
     """
     model.eval()
-    losses_all = {}
+    losses_all: dict[str, float] = {}
     total_samples = 0
     eval_kwargs = {**kwargs}
     device = eval_kwargs.pop("device", next(model.parameters()).device)
@@ -231,21 +231,21 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> Dict[str,
             out, node_features = forward(data, model, device=device, **eval_kwargs)
             losses = compute_loss(data, out, node_features, model=model, **eval_kwargs)
             metrics = compute_metrics(data, out, node_features, **eval_kwargs)
-            losses = {**losses, **metrics}
+            losses_float = {k: v.item() for k, v in losses.items()}
+            losses_float.update(metrics)
 
             # Pearson correlation
             if hasattr(data, "x_target") and isinstance(out, dict) and "px_rate" in out:
                 target = data.x_target.detach().cpu().numpy().flatten()
                 pred = out["px_rate"].detach().cpu().numpy().flatten()
                 if len(target) == len(pred):
-                    corr, _ = pearsonr(pred, target)
-                    losses["pearson"] = corr
+                    corr = pearsonr(pred, target).statistic
+                    losses_float["pearson"] = cast(float, corr)
 
             batch_size = data.x_target.shape[0] if hasattr(data, "x_target") else 1
             total_samples += batch_size
 
-            for k, v in losses.items():
-                v_item = v.item() if torch.is_tensor(v) else float(v)
+            for k, v_item in losses_float.items():
                 if k in losses_all:
                     losses_all[k] += v_item * batch_size
                 else:
@@ -257,9 +257,9 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> Dict[str,
 def encode(
     data: Any,
     model: torch.nn.Module,
-    preprocess_fn: Optional[Callable] = None,
+    preprocess_fn: Callable | None = None,
     **kwargs,
-) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """
     Produces features of nodes in the hypergraph
     :param data: Data object to be fed to the model
@@ -288,12 +288,12 @@ def encode(
 def decode(
     data: Any,
     model: torch.nn.Module,
-    node_features: Tuple[Dict[str, Any], Dict[str, Any]],
+    node_features: tuple[dict[str, Any], dict[str, Any]],
     use_observed_library: bool = True,
-    n_cells: Optional[torch.Tensor] = None,
-    library: Optional[torch.Tensor] = None,
+    n_cells: torch.Tensor | None = None,
+    library: torch.Tensor | None = None,
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Decodes the target data according to data.target.
     :param data: Data object (only information about the target nodes is used).
@@ -343,12 +343,12 @@ def decode(
 def forward(
     data: Any,
     model: torch.nn.Module,
-    device: Optional[torch.device] = None,
-    preprocess_fn: Optional[Callable] = None,
+    device: torch.device | None = None,
+    preprocess_fn: Callable | None = None,
     use_observed_library: bool = True,
     use_latent_means: bool = False,
     **kwargs,
-) -> Tuple[Dict[str, Any], Tuple[Dict[str, Any], Dict[str, Any]]]:
+) -> tuple[dict[str, Any], tuple[dict[str, Any], dict[str, Any]]]:
     """
     Performs forward step on data
     :param data: Data to be fed to the model
@@ -366,7 +366,7 @@ def forward(
     # Set latent variables to mean value (i.e. instead of sampling)
     if use_latent_means:
         (dynamic_node_features, static_node_features) = node_features
-        for k in dynamic_node_features.keys():
+        for k in dynamic_node_features:
             dynamic_node_features[k]["latent"] = dynamic_node_features[k]["mu"]
         node_features = (dynamic_node_features, static_node_features)
 
@@ -378,11 +378,11 @@ def forward(
 
 def compute_loss(
     data: Any,
-    out: Dict[str, Any],
-    node_features: Tuple[Dict[str, Any], Dict[str, Any]],
+    out: dict[str, Any],
+    node_features: tuple[dict[str, Any], dict[str, Any]],
     beta: float = 1.0,
     **kwargs,
-) -> Dict[str, torch.Tensor]:
+) -> dict[str, torch.Tensor]:
     """
     Computes VAE loss
     :param data: Data object with ground truth targets
@@ -399,14 +399,14 @@ def compute_loss(
     if "reg_loss" in out:
         reg_loss = out["reg_loss"]
     else:
-        laplacian_matrix = kwargs.get("laplacian_matrix", None)
-        gene_weights = _get_decoder_gene_weights(kwargs.get("model", None), out)
+        laplacian_matrix = kwargs.get("laplacian_matrix")
+        gene_weights = _get_decoder_gene_weights(kwargs.get("model"), out)
         if lambda_reg > 0 and laplacian_matrix is not None and gene_weights is not None:
             reg_loss = graph_laplacian_regularization(gene_weights, laplacian_matrix)
 
     kl_loss = torch.tensor(0.0, device=rec_loss.device)
     dynamic_node_features, _ = node_features
-    for k, v in dynamic_node_features.items():
+    for _k, v in dynamic_node_features.items():
         if "mu" in v:
             mu = v["mu"]
             if "logvar" in v:
@@ -438,11 +438,11 @@ def compute_loss(
 
 def compute_metrics(
     data: Any,
-    out: Dict[str, Any],
-    node_features: Tuple[Dict[str, Any], Dict[str, Any]],
-    metric_fns: Optional[list] = None,
+    out: dict[str, Any],
+    node_features: tuple[dict[str, Any], dict[str, Any]],
+    metric_fns: list | None = None,
     **kwargs,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     out_dict = {}
 
     if metric_fns is not None:

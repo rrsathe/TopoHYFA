@@ -49,7 +49,7 @@ def filter_not_obs(adata, obs_dict):
     :return: Filtered AnnData where observations do not match any filter in obs_dict
     """
     mask = np.full((adata.shape[0], 1), True)  # Will be broadcasted
-    for k, v in obs_dict.items():
+    for k, _v in obs_dict.items():
         m = np.array(adata.obs[k].values)[:, None] == np.array(obs_dict[k])[None, :]
         mask = np.logical_and(mask, m)
     mask = ~np.any(mask, axis=-1)
@@ -145,7 +145,7 @@ def select_tissues(data, tissues, sampl_ids, selected_tissues):
     data = data[mask]
     tissues = tissues[mask]
     sampl_ids = sampl_ids[mask]
-    print("Selected {} samples".format(len(sampl_ids)))
+    print(f"Selected {len(sampl_ids)} samples")
 
     return data, tissues, sampl_ids
 
@@ -251,7 +251,7 @@ def densify(node_map, genes, hyperedge_index, hyperedge_attr):
     k = next(iter(node_map))
     nb_samples = node_map[k].shape[0]
     row_mask = torch.full((nb_samples,), True)
-    for k in node_map.keys():
+    for k in node_map:
         row_mask = row_mask.to(node_map[k].device) & (hyperedge_index[k][:, None] == node_map[k])
     # Shape row_mask = (nb_hyperedges=nb_samples*nb_metagenes, nb_samples)
     col_mask = hyperedge_index["metagenes"][:, None] == genes

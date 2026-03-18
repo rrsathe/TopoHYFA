@@ -2,9 +2,8 @@
 Defines Data class encapsulating data source/target gene expression data
 """
 
-import torch
-from src.data_utils import map_to_ids
 import numpy as np
+import torch
 
 
 class Data:
@@ -89,7 +88,7 @@ class Data:
         self.node_features = {}
         # TODO: Sanity check -- there cannot be any target nodes that do not belong to source nodes
         # This might cause issues in aggregation operations, i.e. they have no incoming messages
-        for k in self.source_dynamic.keys():  # assumes same set of keys for source and target
+        for k in self.source_dynamic:  # assumes same set of keys for source and target
             v_source = self.source_dynamic[k]
             v_target = self.target_dynamic[k]
             v = np.concatenate((v_source, v_target))
@@ -120,30 +119,30 @@ class Data:
         data = Data()
 
         # Store static features
-        for k in datalist[0].source.keys():
+        for k in datalist[0].source:
             data.source[k] = torch.cat([d.source[k] for d in datalist], dim=0)
-        for k in datalist[0].target.keys():
+        for k in datalist[0].target:
             data.target[k] = torch.cat([d.target[k] for d in datalist], dim=0)
 
         data.x_source = torch.cat([d.x_source for d in datalist], dim=0)
         data.x_target = torch.cat([d.x_target for d in datalist], dim=0)
 
         # Store dynamic features
-        for k in datalist[0].source_features.keys():
+        for k in datalist[0].source_features:
             data.source_features[k] = torch.cat([d.source_features[k] for d in datalist], dim=0)
-        for k in datalist[0].target_features.keys():
+        for k in datalist[0].target_features:
             data.target_features[k] = torch.cat([d.target_features[k] for d in datalist], dim=0)
 
         # Store miscellaneous features
-        for k in datalist[0].source_misc.keys():
+        for k in datalist[0].source_misc:
             data.source_misc[k] = torch.cat([d.source_misc[k] for d in datalist], dim=0)
-        for k in datalist[0].target_misc.keys():
+        for k in datalist[0].target_misc:
             data.target_misc[k] = torch.cat([d.target_misc[k] for d in datalist], dim=0)
 
         # Store dynamic IDs
-        for k in datalist[0].source_dynamic.keys():
+        for k in datalist[0].source_dynamic:
             data.source_dynamic[k] = np.concatenate([d.source_dynamic[k] for d in datalist])
-        for k in datalist[0].target_dynamic.keys():
+        for k in datalist[0].target_dynamic:
             data.target_dynamic[k] = np.concatenate([d.target_dynamic[k] for d in datalist])
         data.map_dynamic_idxs()
 

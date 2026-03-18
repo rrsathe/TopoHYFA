@@ -58,9 +58,6 @@ def get_reconstruction_loss(
     else:
         raise ValueError(f"Unknown gene_likelihood: {gene_likelihood}")
 
-    if aggr == "mean":
-        reconst_loss = reconst_loss.mean(dim=-1)
-    else:
-        reconst_loss = reconst_loss.sum(dim=-1)
+    reconst_loss = reconst_loss.mean(dim=-1) if aggr == "mean" else reconst_loss.sum(dim=-1)
 
     return reconst_loss

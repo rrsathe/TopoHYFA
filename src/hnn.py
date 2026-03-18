@@ -4,12 +4,11 @@ Defines hypergraph neural network
 
 import torch
 import torch.nn as nn
-from torch_scatter import scatter_sum
-from src.hnn_utils import *
-from src.metagene_encoders import *
-from src.metagene_decoders import *
+
+from src.hnn_utils import MLP
 from src.hypergraph_layer import GATHypergraphLayer, MPNNHypergraphLayer
-from torch.distributions import Normal
+from src.metagene_decoders import get_decoder
+from src.metagene_encoders import PlainEncoder
 
 
 class HypergraphNeuralNet(torch.nn.Module):
@@ -38,7 +37,7 @@ class HypergraphNeuralNet(torch.nn.Module):
         self.params = nn.ParameterDict(self.params)
 
         for (
-            k,
+            _k,
             v,
         ) in (
             config.dynamic_node_types.items()
@@ -154,7 +153,7 @@ class HypergraphNeuralNet(torch.nn.Module):
             node_features = (dynamic_node_features_, static_node_features)
 
         # Compute parameters of latent distribution
-        for k in dynamic_node_features_.keys():  # dynamic_node_features_.items():
+        for k in dynamic_node_features_:  # dynamic_node_features_.items():
             q = dynamic_node_features_[k]  # [hyperedge_index[k]]
 
             # Store parameters

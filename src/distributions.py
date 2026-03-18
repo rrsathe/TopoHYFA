@@ -6,7 +6,7 @@ All rights reserved.
 """
 
 import warnings
-from typing import Optional, Tuple, Union
+from collections.abc import Callable
 
 import torch
 import torch.nn.functional as F
@@ -70,12 +70,12 @@ def log_zinb_positive(
 
 
 def log_nb_positive(
-    x: Union[torch.Tensor],
-    mu: Union[torch.Tensor],
-    theta: Union[torch.Tensor],
+    x: torch.Tensor,
+    mu: torch.Tensor,
+    theta: torch.Tensor,
     eps: float = 1e-8,
-    log_fn: callable = torch.log,
-    lgamma_fn: callable = torch.lgamma,
+    log_fn: Callable[[torch.Tensor], torch.Tensor] = torch.log,
+    lgamma_fn: Callable[[torch.Tensor], torch.Tensor] = torch.lgamma,
 ):
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
@@ -272,11 +272,11 @@ class NegativeBinomial(Distribution):
 
     def __init__(
         self,
-        total_count: Optional[torch.Tensor] = None,
-        probs: Optional[torch.Tensor] = None,
-        logits: Optional[torch.Tensor] = None,
-        mu: Optional[torch.Tensor] = None,
-        theta: Optional[torch.Tensor] = None,
+        total_count: torch.Tensor | None = None,
+        probs: torch.Tensor | None = None,
+        logits: torch.Tensor | None = None,
+        mu: torch.Tensor | None = None,
+        theta: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
         self._eps = 1e-8
@@ -288,6 +288,7 @@ class NegativeBinomial(Distribution):
         using_param_1 = total_count is not None and (logits is not None or probs is not None)
         if using_param_1:
             logits = logits if logits is not None else probs_to_logits(probs)
+            assert total_count is not None
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
@@ -305,7 +306,9 @@ class NegativeBinomial(Distribution):
     def variance(self):
         return self.mean + (self.mean**2) / self.theta
 
-    def sample(self, sample_shape: Union[torch.Size, Tuple] = torch.Size()) -> torch.Tensor:
+    def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
+        if sample_shape is None:
+            sample_shape = torch.Size()
         with torch.no_grad():
             gamma_d = self._gamma()
             p_means = gamma_d.sample(sample_shape)
@@ -324,6 +327,7 @@ class NegativeBinomial(Distribution):
                 warnings.warn(
                     "The value argument must be within the support of the distribution",
                     UserWarning,
+                    stacklevel=2,
                 )
 
         return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
@@ -374,12 +378,12 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     def __init__(
         self,
-        total_count: Optional[torch.Tensor] = None,
-        probs: Optional[torch.Tensor] = None,
-        logits: Optional[torch.Tensor] = None,
-        mu: Optional[torch.Tensor] = None,
-        theta: Optional[torch.Tensor] = None,
-        zi_logits: Optional[torch.Tensor] = None,
+        total_count: torch.Tensor | None = None,
+        probs: torch.Tensor | None = None,
+        logits: torch.Tensor | None = None,
+        mu: torch.Tensor | None = None,
+        theta: torch.Tensor | None = None,
+        zi_logits: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
 
@@ -410,7 +414,9 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     def zi_probs(self) -> torch.Tensor:
         return logits_to_probs(self.zi_logits, is_binary=True)
 
-    def sample(self, sample_shape: Union[torch.Size, Tuple] = torch.Size()) -> torch.Tensor:
+    def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
+        if sample_shape is None:
+            sample_shape = torch.Size()
         with torch.no_grad():
             samp = super().sample(sample_shape=sample_shape)
             is_zero = torch.rand_like(samp) <= self.zi_probs
@@ -425,6 +431,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                 warnings.warn(
                     "The value argument must be within the support of the distribution",
                     UserWarning,
+                    stacklevel=2,
                 )
         return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
 
@@ -467,7 +474,7 @@ class NegativeBinomialMixture(Distribution):
         mu2: torch.Tensor,
         theta1: torch.Tensor,
         mixture_logits: torch.Tensor,
-        theta2: Optional[torch.Tensor] = None,
+        theta2: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
 
@@ -494,7 +501,9 @@ class NegativeBinomialMixture(Distribution):
     def mixture_probs(self) -> torch.Tensor:
         return logits_to_probs(self.mixture_logits, is_binary=True)
 
-    def sample(self, sample_shape: Union[torch.Size, Tuple] = torch.Size()) -> torch.Tensor:
+    def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
+        if sample_shape is None:
+            sample_shape = torch.Size()
         with torch.no_grad():
             pi = self.mixture_probs
             mixing_sample = torch.distributions.Bernoulli(pi).sample()
@@ -519,6 +528,7 @@ class NegativeBinomialMixture(Distribution):
             warnings.warn(
                 "The value argument must be within the support of the distribution",
                 UserWarning,
+                stacklevel=2,
             )
         return log_mixture_nb(
             value,

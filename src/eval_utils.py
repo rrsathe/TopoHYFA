@@ -40,10 +40,7 @@ def pearson_correlation_score(x_gt, x_pred, sample_corr=False):
 
 
 def r2_score(x_gt, x_pred, sample_corr=False):
-    if sample_corr:
-        score = r2(x_gt.T, x_pred.T)
-    else:
-        score = r2(x_gt, x_pred)
+    score = r2(x_gt.T, x_pred.T) if sample_corr else r2(x_gt, x_pred)
     return score
 
 

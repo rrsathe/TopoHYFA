@@ -3,10 +3,11 @@ This file defines the Pytorch MultiTissueDataset
 """
 
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
 import torch
+from torch.utils.data import Dataset
+
 from src.data import Data
-from src.data_utils import select_obs, filter_not_obs
+from src.data_utils import filter_not_obs, select_obs
 
 
 def default_sample_fn(donor_adata_source, donor_adata_target):
@@ -79,14 +80,14 @@ class HypergraphDataset(Dataset):
             )
 
         # Create patient map giving a unique ID from [0, nb_patients) to each individual
-        self.donor_map = {i: v for i, v in enumerate(sorted(donor_ids))}
+        self.donor_map = dict(enumerate(sorted(donor_ids)))
         self.donor_map_inv = {v: i for i, v in self.donor_map.items()}
 
         # Fix source/target tissues of each individual
         if static:
             self.donor_adata_source = []
             self.donor_adata_target = []
-            for i, pidx in enumerate(sorted(donor_ids)):
+            for i, _pidx in enumerate(sorted(donor_ids)):
                 donor_adata_source, donor_adata_target = self._get_source_target(i, static=False)
                 self.donor_adata_source.append(donor_adata_source)
                 self.donor_adata_target.append(donor_adata_target)
