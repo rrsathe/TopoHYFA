@@ -1,171 +1,172 @@
-# Hypergraph Factorisation for Multi-Tissue Gene Expression Imputation
-[![DOI](https://zenodo.org/badge/513058833.svg)](https://zenodo.org/badge/latestdoi/513058833)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/rvinas/HYFA/blob/main/LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
+# Topology-Aware HYFA: Targeted Multi-Tissue Gene Expression Imputation
 
-Welcome to the repository of *[Hypergraph Factorisation for Multi-Tissue Gene Expression Imputation](https://www.nature.com/articles/s42256-023-00684-8)*  — HYFA.
+> A topology-aware extension of [HYFA](https://www.nature.com/articles/s42256-023-00684-8) that improves targeted gene expression imputation by enforcing biological network consistency.
 
-**Overview of HYFA**
+Welcome to the repository for **Topology-Aware HYFA**, a hybrid deep learning architecture that integrates the parameter-efficient hypergraph message-passing of **[HYFA](https://www.nature.com/articles/s42256-023-00684-8)** with the biological network priors of **[TEEBoT](https://www.science.org/doi/10.1126/sciadv.abd6991)**.
 
-![](fig/HYFA_overview.png)
-> HYFA processes gene expression from a number of collected tissues (e.g. accessible tissues) and infers the transcriptomes of uncollected tissues.
+This pipeline is specifically engineered for **targeted gene expression imputation** (e.g., tracing a 15-gene cardiovascular signature in heart tissue using non-invasive whole blood transcriptomes). By moving away from noisy, global transcriptome prediction and injecting biological co-expression graphs into the loss function, this model aims to improve the recovery of specific, clinically relevant biomarkers.
 
-**HYFA Workflow**
+## 🧬 Integrated Architecture
 
-![](fig/model_diagram.png)
+This repository fuses the methodologies of two foundational papers:
 
-> 1. The model receives as input a variable number of gene expression samples $x^{(k)}\_i$ corresponding to the collected tissues $k \in \mathcal{T}(i)$ of a given individual $i$. The samples $x^{(k)}\_i$ are fed through an encoder that computes low-dimensional representations $e^{(k)}\_{ij}$ for each metagene $j \in 1 .. M$. A *metagene* is a latent, low-dimensional representation that captures certain gene expression patterns of the high-dimensional input sample. 
-> 2. These representations are then used as hyperedge features in a message passing neural network that operates on a hypergraph. In the hypergraph representation, each hyperedge labelled with $e^{(k)}\_{ij}$ connects an individual $i$ with metagene $j$ and tissue $k$ if tissue $k$ was collected for individual $i$, i.e. $k \in \mathcal{T}(i)$. Through message passing, HYFA learns factorised representations of individual, tissue, and metagene nodes. 
-> 3. To infer the gene expression of an uncollected tissue $u$ of individual $i$, the corresponding factorised representations are fed through a multilayer perceptron (MLP) that predicts low-dimensional features $e^{(u)}\_{ij}$ for each metagene $j \in 1 .. M$. HYFA finally processes these latent representations through a decoder that recovers the uncollected gene expression sample $\hat{x}^{(u)}\_{ij}$.
+1. **HYFA (Hypergraph Factorization):** Acts as the core generative engine, using a hypergraph neural network to learn factorized representations of individuals, tissues, and metagenes.
+2. **TEEBoT (Tissue Expression Estimation using Blood Transcriptome):** Provides the inductive biological prior. TEEBoT demonstrated that predictable genes share regulatory networks. We enforce this via a **Graph Smoothness Regularizer**, penalizing the model if biologically correlated genes learn divergent latent representations.
 
+### Key Features
 
-## Installation
-1. Clone this repository: ```git clone https://github.com/rvinas/HYFA.git```
-2. Install the dependencies via the following command:
-```pip install -r requirements.txt```
+- **Targeted Bottlenecking:** Dynamically slices the global GTEx feature space to focus exclusively on user-defined target genes, padding missing genes to maintain VAE matrix stability.
+- **Topological Regularization:** Computes the Graph Smoothness penalty ($Tr(W^T L W)$) using a provided co-expression/PPI adjacency matrix, integrated natively into the PyTorch Negative Binomial reconstruction loss.
+- **Dynamic CLI:** Fully modular Command Line Interface (CLI) allowing rapid ablation studies across varying tissues, target genes, and regularization weights ($\lambda_{reg}$).
 
-The installation typically takes a few minutes.
+## 🧪 Baseline: TEEBoT
 
-## Data download
-To download the processed GTEx data, please follow these steps:
-```
-wget -O data/GTEx_data.csv.zip https://figshare.com/ndownloader/files/40208074
-wget -O data/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt https://storage.googleapis.com/adult-gtex/annotations/v8/metadata-files/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt
-unzip data/GTEx_data.csv.zip -d data
-```
+We benchmark against **[TEEBoT](https://www.science.org/doi/10.1126/sciadv.abd6991)**, a classical approach for predicting tissue-specific gene expression from whole blood transcriptomes.
 
-To download the pre-trained model, please run this command:
-```
-wget -O data/normalised_model_default.pth https://figshare.com/ndownloader/files/40208551
-```
+TEEBoT operates by:
+- Performing **gene-wise prediction** using LASSO regression
+- Using **principal components (PCs)** of blood gene expression and splicing as features
+- Incorporating demographic confounders (age, sex, race)
+- Filtering predictable genes via **likelihood ratio tests (LLR)**
 
-## Running the model
-1. Prepare your dataset:
-   * By default, the script `train_gtex.py` loads a dataset from a CSV file (`GTEX_FILE`) with the following format:
-     * Columns are genes and rows are samples.
-     * Entries correspond to normalised gene expression values.
-     * The first row contains gene identifiers.
-     * The first column contains donor identifiers. The file might contain multiple rows per donor.
-     * An extra column `tissue` denotes the tissue from which the sample was collected. The combination of donor and tissue identifier is unique.  
-   * The metadata is loaded from a separate CSV file (`METADATA_FILE`; see function `GTEx_metadata` in `train_gtex.py`). Rows correspond to donors and columns to covariates. By default, the script expects at least two columns: `AGE` (integer) and `SEX` (integer). 
-   
-   
-   Example of gene expression CSV file:
-     ```
-     , GENE1, GENE2, GENE3, tissue
-     INDIVIDUAL1, 0.0, 0.1, 0.2, heart
-     INDIVIDUAL1, 0.0, 0.1, 0.2, lung
-     INDIVIDUAL1, 0.0, 0.1, 0.2, breast
-     INDIVIDUAL2. 0.0, 0.1, 0.2, kidney
-     INDIVIDUAL3, 0.0, 0.1, 0.2, kidney
-     ```
-   
-   Example of metadata CSV file:
-   ```
-   , AGE, SEX
-   INDIVIDUAL1, 34, 0
-   INDIVIDUAL2. 55, 1
-   INDIVIDUAL3, 49, 1
-   ```
-   
-   See the notebook `hyfa_tutorial.ipynb` for an overview of the data format and main features of HYFA.
+### Limitations of TEEBoT
 
-2. Run the script `train_gtex.py` to train HYFA. This uses the default hyperparameters from `config/default.yaml`. After training, the model will be stored in your current working directory. We recommend training the model on a GPU machine (training takes between 15 and 30 minutes on a NVIDIA TITAN Xp).
+- ❌ Treats each gene **independently** (no shared structure)
+- ❌ Ignores **gene-gene interaction networks**
+- ❌ Limited capacity to model **nonlinear relationships**
+- ❌ Requires separate models per gene (not scalable)
 
-3. Once the model is trained, evaluate your results via the notebook `evaluate_GTEx_v8_normalised.ipynb`.
+### How TopoHYFA Improves Upon This
 
-## Targeted Gene Imputation (15-gene workflow)
+TopoHYFA addresses these limitations by:
+- ✅ Learning **shared latent representations** via hypergraph neural networks
+- ✅ Injecting **biological topology (co-expression/PPI graphs)** via graph regularization
+- ✅ Modeling **nonlinear cross-tissue relationships**
+- ✅ Enabling **joint multi-gene prediction** in a unified framework
 
-This repository includes tooling for a focused workflow that imputes 15 specific cardiac-related genes from Whole Blood to Heart Left Ventricle tissue.
+| Feature | TEEBoT | TopoHYFA |
+|---|---|---|
+| Model type | LASSO | Hypergraph NN |
+| Gene interactions | ❌ | ✅ |
+| Nonlinearity | ❌ | ✅ |
+| Joint prediction | ❌ | ✅ |
+| Biological priors | ❌ | ✅ |
 
-### 1. Prepare handoff files
+---
+
+## ⚙️ Installation
+
+1. Clone this repository:
+
 ```bash
-uv run python prep_handoff.py
+git clone https://github.com/rrsathe/TopoHYFA.git
+cd TopoHYFA
 ```
-This creates `Imputation/output/HYFA_export/` with:
-- `target_genes_15.csv` — expression matrix filtered to the 15 target genes
-- `adjacency_matrix.csv` — 15×15 Pearson correlation adjacency matrix
-- `confounders.csv` — Age and Sex covariates
 
-### 2. Train the model
+2. Install the dependencies (using `uv` or `pip`):
+
+```bash
+uv pip install -r requirements.txt
+```
+
+---
+
+## 📊 Data Preparation
+
+This model requires normalized **GTEx v8** data.
+
+1. **Download the raw data:**
+   - Download the processed HYFA expression data: `GTEX_data.csv.zip` ([Link](https://figshare.com/ndownloader/files/40208074))
+   - Download the GTEx v8 Subject Phenotypes: `GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt` ([Link](https://storage.googleapis.com/adult-gtex/annotations/v8/metadata-files/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt))
+   - Extract and place both files in the `data/` directory.
+
+2. **Generate the handoff datasets:**
+   Use the included preparation script to subset your target genes, extract demographic confounders, and generate the data-driven $15 \times 15$ co-expression adjacency matrix.
+
+```bash
+python prep_handoff.py
+```
+
+This generates `target_genes_15.csv`, `confounders.csv`, and `adjacency_matrix.csv` in `Imputation/output/HYFA_export/`.
+
+---
+
+## 🚀 Usage
+
+The architecture is controlled via the `train_gtex.py` CLI.
+
+### 1. Train the Baseline Model (Control)
+
+Train the standard hypergraph model without topological priors by setting `--lambda-reg 0.0`.
+
 ```bash
 uv run python train_gtex.py \
+  --source-tissue "Whole Blood" \
+  --target-tissue "Heart_L_Vent" \
   --target-genes Imputation/output/HYFA_export/target_genes_15.csv \
-  --topology-matrix Imputation/output/HYFA_export/adjacency_matrix.csv \
   --confounders Imputation/output/HYFA_export/confounders.csv \
-  --lambda-reg 0.1 \
-  --source-tissue Whole_Blood \
-  --target-tissue Heart_L_Vent
+  --topology-matrix Imputation/output/HYFA_export/adjacency_matrix.csv \
+  --lambda-reg 0.0
+
+# Preserve the weights
+mv data/model.pth data/model_baseline.pth
 ```
 
-### 3. Evaluate
+### 2. Train the Topology-Aware Model
+
+Activate the biological priors by setting a positive regularization weight (e.g., `--lambda-reg 0.1`).
+
 ```bash
-# Per-gene Pearson correlation and RMSE
+uv run python train_gtex.py \
+  --source-tissue "Whole Blood" \
+  --target-tissue "Heart_L_Vent" \
+  --target-genes Imputation/output/HYFA_export/target_genes_15.csv \
+  --confounders Imputation/output/HYFA_export/confounders.csv \
+  --topology-matrix Imputation/output/HYFA_export/adjacency_matrix.csv \
+  --lambda-reg 0.1
+
+# Preserve the weights
+mv data/model.pth data/model_topology.pth
+```
+
+### 3. Evaluate and Compare (Ablation Study)
+
+Run the automated evaluation scripts to test both models and compare targeted-gene performance.
+
+```bash
 uv run python eval_15.py
-
-# Side-by-side comparison with TEEBoT baseline
 uv run python benchmark_teebot.py
-
-# Downstream disease prediction (AUC)
-uv run python run_disease_prediction.py --phenotype SEX
 ```
 
-## Inference on New Samples
+## 📈 Results (Preliminary)
 
-Once you have trained weights, use `infer.py` to impute target-tissue expression:
+- Improved Pearson correlation on targeted genes compared to baseline HYFA
+- Better recovery of biologically co-expressed gene clusters
+- More stable predictions for low-expression genes
 
-```bash
-uv run python infer.py \
-  --weights data/model.pth \
-  --source Whole_Blood \
-  --target Heart_L_Vent \
-  --output-csv predictions.csv
-```
+*(Full quantitative benchmarks and plots coming soon)*
 
-| Argument | Default | Description |
-|---|---|---|
-| `--weights` | `data/model.pth` | Path to trained model weights |
-| `--source` | `Whole_Blood` | Source tissue label |
-| `--target` | `Heart_L_Vent` | Target tissue to impute |
-| `--output-csv` | `predictions.csv` | Output file for predicted expression |
-| `--target-genes` | `Imputation/output/HYFA_export/target_genes_15.csv` | Gene subset definition |
+---
 
-## Benchmarking
+## 📁 Core Project Structure
 
-`benchmark_teebot.py` compares HYFA against the TEEBoT baseline (PCA + Linear Regression) on the same train/test split. It produces:
-- `results/hyfa_vs_teebot_comparison.csv` — per-gene Pearson and RMSE for both methods
-- `results/hyfa_vs_teebot_pearson.png` — grouped bar chart
+- `train_gtex.py` - Main CLI training loop with dynamic subsetting.
+- `eval_15.py` - Pearson correlation and RMSE benchmarking on the 15-gene task.
+- `benchmark_teebot.py` - Side-by-side HYFA vs. TEEBoT baseline benchmarking.
+- `prep_handoff.py` - Data processing pipeline bridging GTEx structures to model inputs.
+- `src/losses.py` - Contains the custom `sparse_graph_smoothness` regularizer and updated reconstruction losses.
+- `src/metagene_decoders.py` - Modified probabilistic decoders featuring dynamic weight extraction for topological pairing.
+- `Imputation/` - Legacy R-based exploration scripts and TEEBoT data environments.
 
-## Quick reference of main files
-- `hyfa_tutorial.ipynb`: Tutorial of the main features of HYFA.
-- `train_gtex.py`: Main script to train the multi-tissue imputation model on normalised GTEx data
-- `evaluate_GTEx_v8_normalised.ipynb`: Analysis of multi-tissue imputation quality on normalised data (i.e. model trained via `train_gtex.py`)
-- `evaluate_GTEx_v9_signatures_normalised.ipynb`: Analysis of cell-type signature imputation (i.e. fine-tunes model on GTEx-v9)
+---
 
-### Data
-- `src/data.py`: Data object encapsulating multi-tissue gene expression
-- `src/dataset.py`: Dataset that takes care of processing the data
-- `src/data_utils.py`: Data utilities
+## 📚 Citations & Acknowledgements
 
-### Model
-- `src/hnn.py`: Hypergraph neural network
-- `src/hypergraph_layer.py`: Message passing on hypergraph
-- `src/hnn_utils.py`: Hypergraph model utilities
-- `src/metagene_encoders.py`: Model transforming gene expression to metagene values
-- `src/metagene_decoders.py`: Model transforming metagene values to gene expression
+This architecture integrates and builds upon the foundational research from the following publications. If you use this code in your research, please cite both:
 
-### Training
-- `src/train_utils.py`: Train/eval loops
-- `src/distribions.py`: Count data distributions
-- `src/losses.py`: Loss functions for different data likelihoods
+**HYFA (Hypergraph Factorization):**
 
-### Other utils
-- `src/pathway_utils.py`: Utilities to retrieve KEGG pathways
-- `src/ct_signature_utils.py`: Utilities for inferring cell-type signatures
-
-## Citation
-If you use this code for your research, please cite our paper:
-```
+```bibtex
 @article{vinas2023hypergraph,
   title={Hypergraph factorization for multi-tissue gene expression imputation},
   author={Vi{\~n}as, Ramon and Joshi, Chaitanya K and Georgiev, Dobrik and Lin, Phillip and Dumitrascu, Bianca and Gamazon, Eric R and Li{\`o}, Pietro},
@@ -173,5 +174,20 @@ If you use this code for your research, please cite our paper:
   pages={1--15},
   year={2023},
   publisher={Nature Publishing Group UK London}
+}
+```
+
+**TEEBoT (Tissue Expression Estimation):**
+
+```bibtex
+@article{basu2021predicting,
+  title={Predicting tissue-specific gene expression from whole blood transcriptome},
+  author={Basu, Mahashweta and Wang, Kun and Ruppin, Eytan and Hannenhalli, Sridhar},
+  journal={Science Advances},
+  volume={7},
+  number={14},
+  pages={eabd6991},
+  year={2021},
+  publisher={American Association for the Advancement of Science}
 }
 ```
