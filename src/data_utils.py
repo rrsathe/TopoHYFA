@@ -3,11 +3,28 @@ This file contains various utilities to manipulate multi-tissue data
 """
 
 import numpy as np
+import pandas as pd
 import torch
 
 # =================================
 # AnnData utils
 # =================================
+
+
+def load_adjacency_matrix(filepath, gene_order):
+    """
+    Reads adjacency_matrix.csv and aligns it.
+    """
+    df = pd.read_csv(filepath, index_col=0)
+    # align it to the order of the Ensembl IDs provided
+    df = df.reindex(index=gene_order, columns=gene_order).fillna(0)
+    df = (df + df.T) / 2
+    df = df / (df.to_numpy().max() + 1e-8)
+    return torch.tensor(df.values, dtype=torch.float32)
+
+
+# =================================
+
 
 def select_obs(adata, obs_dict):
     """
@@ -39,14 +56,16 @@ def filter_not_obs(adata, obs_dict):
     return adata[mask]
 
 
-def select_overlapping_genes(adata_1, adata_2, var_key='Symbol'):
+def select_overlapping_genes(adata_1, adata_2, var_key="Symbol"):
     """
     Selects set of overlapping genes
     :param adata_1: AnnData 1
     :param adata_2: AnnData 2
     :return: Aligned AnnDatas
     """
-    overlapping_genes = np.intersect1d(adata_1.var[var_key].values, adata_2.var[var_key].values)
+    overlapping_genes = np.intersect1d(
+        adata_1.var[var_key].values, adata_2.var[var_key].values
+    )
 
     # Select overlapping genes between v8 and v9
     gene_mask_1 = [g in overlapping_genes for g in adata_1.var[var_key]]
@@ -66,6 +85,7 @@ def select_overlapping_genes(adata_1, adata_2, var_key='Symbol'):
 # =================================
 # Individual train/test splitting
 # =================================
+
 
 def split_patient_train_test(patients, train_rate=0.8, seed=0):
     """
@@ -91,6 +111,7 @@ def split_patient_train_test(patients, train_rate=0.8, seed=0):
 # Mapping names to unique integer IDs
 # ====================================
 
+
 def map_to_ids(values, mapping=None):
     """
     Maps list of values to unique IDs (integers from 0 to N-1, extremes included, where N is the
@@ -111,6 +132,7 @@ def map_to_ids(values, mapping=None):
 # Selecting samples/individuals by tissues
 # =================================================
 
+
 def select_tissues(data, tissues, sampl_ids, selected_tissues):
     """
     Select samples measured in any of the given selected tissues
@@ -125,7 +147,7 @@ def select_tissues(data, tissues, sampl_ids, selected_tissues):
     data = data[mask]
     tissues = tissues[mask]
     sampl_ids = sampl_ids[mask]
-    print('Selected {} samples'.format(len(sampl_ids)))
+    print("Selected {} samples".format(len(sampl_ids)))
 
     return data, tissues, sampl_ids
 
@@ -153,6 +175,7 @@ def patients_with_tissues_mask(patients, tissues, selected_tissues):
 # Sparsify/densify data in PyTorch
 # =================================
 
+
 def get_hyperedges(expanded_node_map, genes, x=None):
     """
     Flattens the patients, tissue, and gene tensors (matrix indicating the individual, tissue, and genes of each element
@@ -169,7 +192,7 @@ def get_hyperedges(expanded_node_map, genes, x=None):
 
     # Obtain hyperedges from idxs (indexing the whole dataset)
     hyperedges = {k: torch.flatten(v) for k, v in expanded_node_map.items()}
-    hyperedges['metagenes'] = torch.flatten(genes)
+    hyperedges["metagenes"] = torch.flatten(genes)
 
     # Obtain hyperedge attributes
     hyperedge_attr = None
@@ -177,6 +200,7 @@ def get_hyperedges(expanded_node_map, genes, x=None):
         hyperedge_attr = torch.reshape(x, (nb_samples * nb_genes, -1))
 
     return hyperedges, hyperedge_attr
+
 
 def sparsify(node_map, genes, x=None):
     """
@@ -201,7 +225,9 @@ def sparsify(node_map, genes, x=None):
     # - genes_: indicates to which patient each element (i, j) in the data matrix belongs to
     expanded_node_map = {}
     for k, v in node_map.items():
-        expanded_node_map[k] = torch.tile(v[:, None], (1, nb_genes))  # Shape=(nb_samples, nb_genes)
+        expanded_node_map[k] = torch.tile(
+            v[:, None], (1, nb_genes)
+        )  # Shape=(nb_samples, nb_genes)
     genes_ = torch.tile(genes[None, :], (nb_samples, 1))  # Shape=(nb_samples, nb_genes)
 
     # Construct hyperedge index
@@ -230,15 +256,19 @@ def densify(node_map, genes, hyperedge_index, hyperedge_attr):
     nb_samples = node_map[k].shape[0]
     row_mask = torch.full((nb_samples,), True)
     for k in node_map.keys():
-        row_mask = row_mask.to(node_map[k].device) & (hyperedge_index[k][:, None] == node_map[k])
+        row_mask = row_mask.to(node_map[k].device) & (
+            hyperedge_index[k][:, None] == node_map[k]
+        )
     # Shape row_mask = (nb_hyperedges=nb_samples*nb_metagenes, nb_samples)
-    col_mask = hyperedge_index['metagenes'][:, None] == genes
+    col_mask = hyperedge_index["metagenes"][:, None] == genes
     row = torch.where(row_mask)[1]
     col = torch.where(col_mask)[1]
 
     # Fill in output tensor
     out_shape = (nb_samples, genes.shape[0], hyperedge_attr.shape[-1])
-    out = hyperedge_attr.new_full(out_shape, 0)  # Important: default value for requires_grad is requires_grad=True
+    out = hyperedge_attr.new_full(
+        out_shape, 0
+    )  # Important: default value for requires_grad is requires_grad=True
     out[row, col] = hyperedge_attr
     out = torch.reshape(out, (-1, genes.shape[0] * hyperedge_attr.shape[-1]))
 

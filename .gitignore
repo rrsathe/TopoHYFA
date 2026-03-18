@@ -1,5 +1,14 @@
-*__pycache__*
-wandb/*
-*idea/*
-results/*
-.ipynb_checkpoints/*
+# Data and Models
+data/*
+!data/splits/
+*.pth
+*.zip
+*.csv
+
+# Logs and Env
+wandb/
+.agent/
+.vscode/
+__MACOSX/
+__pycache__/
+eval_arrays.npz

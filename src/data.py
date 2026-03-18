@@ -31,15 +31,15 @@ class Data:
             for k in donor_adata_source.obs.columns:  # Static keys
                 v = donor_adata_source.obs[k]
                 if k.endswith('_idx'):
-                    self.source[k.replace('_idx', '')] = torch.tensor(v)
+                    self.source[k.replace('_idx', '')] = torch.as_tensor(np.asarray(v))
                 elif k.endswith('_dyn'):  # Dynamic IDs
                     self.source_dynamic[k.replace('_dyn', '')] = v
                 elif k.endswith('_misc'):
-                    self.source_misc[k.replace('_misc', '')] = torch.tensor(v)
+                    self.source_misc[k.replace('_misc', '')] = torch.as_tensor(np.asarray(v))
 
             for k, v in donor_adata_source.obsm.items():
                 if k.endswith('_feat'):
-                    self.source_features[k.replace('_feat', '')] = torch.tensor(v)
+                    self.source_features[k.replace('_feat', '')] = torch.as_tensor(np.asarray(v))
 
             self.x_source = torch.tensor(donor_adata_source.layers['x'].toarray(), dtype=dtype)
 
@@ -47,15 +47,15 @@ class Data:
             for k in donor_adata_target.obs.columns:  # Static keys
                 v = donor_adata_target.obs[k]
                 if k.endswith('_idx'):
-                    self.target[k.replace('_idx', '')] = torch.tensor(v)
+                    self.target[k.replace('_idx', '')] = torch.as_tensor(np.asarray(v))
                 elif k.endswith('_dyn'):  # Dynamic IDs
                     self.target_dynamic[k.replace('_dyn', '')] = v
                 elif k.endswith('_misc'):
-                    self.target_misc[k.replace('_misc', '')] = torch.tensor(v)
+                    self.target_misc[k.replace('_misc', '')] = torch.as_tensor(np.asarray(v))
 
             for k, v in donor_adata_target.obsm.items():
                 if k.endswith('_feat'):
-                    self.target_features[k.replace('_feat', '')] = torch.tensor(v)
+                    self.target_features[k.replace('_feat', '')] = torch.as_tensor(np.asarray(v))
 
             self.x_target = torch.tensor(donor_adata_target.layers['x'].toarray(), dtype=dtype)
 

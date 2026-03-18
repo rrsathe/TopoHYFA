@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from src.hnn_utils import *
 from torch.distributions import Normal
+from src.losses import graph_laplacian_regularization
 
 
 def get_decoder(name):
@@ -39,7 +40,11 @@ class PlainDecoder(torch.nn.Module):
         px_rate = self.px_rate_decoder(x)
         px_r = nn.functional.softplus(self.px_r_decoder(x)) + 0.0001  # torch.exp(self.px_r_decoder(px))
 
-        return {'px_r': px_r, 'px_rate': px_rate, 'gene_likelihood': 'normal'}
+        out = {'px_r': px_r, 'px_rate': px_rate, 'gene_likelihood': 'normal'}
+        if getattr(self, 'lambda_reg', 0.0) > 0 and getattr(self, 'adjacency_matrix', None) is not None:
+            out['reg_loss'] = graph_laplacian_regularization(self.px_rate_decoder[0].weight, self.adjacency_matrix)
+            out['lambda_reg'] = self.lambda_reg
+        return out
 
 
 class PoissonDecoder(torch.nn.Module):
@@ -83,9 +88,13 @@ class PoissonDecoder(torch.nn.Module):
         # px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(log_library) * px_scale  # torch.clamp( , max=12)
-        return {'px_scale': px_scale, 'px_rate': px_rate,
+        out = {'px_scale': px_scale, 'px_rate': px_rate,
                 'library_mean': log_library_mean, 'library_var': log_library_var, 'library': log_library,
                 'gene_likelihood': 'poisson'}
+        if getattr(self, 'lambda_reg', 0.0) > 0 and getattr(self, 'adjacency_matrix', None) is not None:
+            out['reg_loss'] = graph_laplacian_regularization(self.px_scale_decoder[0].weight, self.adjacency_matrix)
+            out['lambda_reg'] = self.lambda_reg
+        return out
 
 
 class NegativeBinomialDecoder(torch.nn.Module):
@@ -133,9 +142,13 @@ class NegativeBinomialDecoder(torch.nn.Module):
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(log_library) * px_scale  # torch.clamp( , max=12)
         px_r = torch.exp(torch.clamp(self.px_r_decoder(px), max=12))
-        return {'px_scale': px_scale, 'px_r': px_r, 'px_rate': px_rate,
+        out = {'px_scale': px_scale, 'px_r': px_r, 'px_rate': px_rate,
                 'library_mean': log_library_mean, 'library_var': log_library_var, 'library': log_library,
                 'gene_likelihood': 'nb'}
+        if getattr(self, 'lambda_reg', 0.0) > 0 and getattr(self, 'adjacency_matrix', None) is not None:
+            out['reg_loss'] = graph_laplacian_regularization(self.px_scale_decoder[0].weight, self.adjacency_matrix)
+            out['lambda_reg'] = self.lambda_reg
+        return out
 
 
 class ZeroInflatedNegativeBinomialDecoder(torch.nn.Module):
@@ -189,6 +202,10 @@ class ZeroInflatedNegativeBinomialDecoder(torch.nn.Module):
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = n_cells * torch.exp(log_library) * px_scale  # torch.clamp( , max=12)
         px_r = torch.exp(torch.clamp(self.px_r_decoder(px), max=12))
-        return {'px_scale': px_scale, 'px_r': px_r, 'px_rate': px_rate, 'px_dropout': px_dropout,
+        out = {'px_scale': px_scale, 'px_r': px_r, 'px_rate': px_rate, 'px_dropout': px_dropout,
                 'library_mean': log_library_mean, 'library_var': log_library_var, 'library': log_library,
                 'gene_likelihood': 'zinb'}
+        if getattr(self, 'lambda_reg', 0.0) > 0 and getattr(self, 'adjacency_matrix', None) is not None:
+            out['reg_loss'] = graph_laplacian_regularization(self.px_scale_decoder[0].weight, self.adjacency_matrix)
+            out['lambda_reg'] = self.lambda_reg
+        return out

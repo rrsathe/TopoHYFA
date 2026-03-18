@@ -73,7 +73,68 @@ wget -O data/normalised_model_default.pth https://figshare.com/ndownloader/files
 2. Run the script `train_gtex.py` to train HYFA. This uses the default hyperparameters from `config/default.yaml`. After training, the model will be stored in your current working directory. We recommend training the model on a GPU machine (training takes between 15 and 30 minutes on a NVIDIA TITAN Xp).
 
 3. Once the model is trained, evaluate your results via the notebook `evaluate_GTEx_v8_normalised.ipynb`.
-<!--- The function `GTEx_v8_normalised_adata` populates an [`AnnData`](https://anndata.readthedocs.io/en/latest/) object. --->
+
+## Targeted Gene Imputation (15-gene workflow)
+
+This repository includes tooling for a focused workflow that imputes 15 specific cardiac-related genes from Whole Blood to Heart Left Ventricle tissue.
+
+### 1. Prepare handoff files
+```bash
+uv run python prep_handoff.py
+```
+This creates `Imputation/output/HYFA_export/` with:
+- `target_genes_15.csv` — expression matrix filtered to the 15 target genes
+- `adjacency_matrix.csv` — 15×15 Pearson correlation adjacency matrix
+- `confounders.csv` — Age and Sex covariates
+
+### 2. Train the model
+```bash
+uv run python train_gtex.py \
+  --target-genes Imputation/output/HYFA_export/target_genes_15.csv \
+  --topology-matrix Imputation/output/HYFA_export/adjacency_matrix.csv \
+  --confounders Imputation/output/HYFA_export/confounders.csv \
+  --lambda-reg 0.1 \
+  --source-tissue Whole_Blood \
+  --target-tissue Heart_L_Vent
+```
+
+### 3. Evaluate
+```bash
+# Per-gene Pearson correlation and RMSE
+uv run python eval_15.py
+
+# Side-by-side comparison with TEEBoT baseline
+uv run python benchmark_teebot.py
+
+# Downstream disease prediction (AUC)
+uv run python run_disease_prediction.py --phenotype SEX
+```
+
+## Inference on New Samples
+
+Once you have trained weights, use `infer.py` to impute target-tissue expression:
+
+```bash
+uv run python infer.py \
+  --weights data/model.pth \
+  --source Whole_Blood \
+  --target Heart_L_Vent \
+  --output-csv predictions.csv
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--weights` | `data/model.pth` | Path to trained model weights |
+| `--source` | `Whole_Blood` | Source tissue label |
+| `--target` | `Heart_L_Vent` | Target tissue to impute |
+| `--output-csv` | `predictions.csv` | Output file for predicted expression |
+| `--target-genes` | `Imputation/output/HYFA_export/target_genes_15.csv` | Gene subset definition |
+
+## Benchmarking
+
+`benchmark_teebot.py` compares HYFA against the TEEBoT baseline (PCA + Linear Regression) on the same train/test split. It produces:
+- `results/hyfa_vs_teebot_comparison.csv` — per-gene Pearson and RMSE for both methods
+- `results/hyfa_vs_teebot_pearson.png` — grouped bar chart
 
 ## Quick reference of main files
 - `hyfa_tutorial.ipynb`: Tutorial of the main features of HYFA.

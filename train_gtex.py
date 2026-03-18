@@ -1,26 +1,29 @@
 """
 Trains the model on GTEx data
 """
-import torch
+
+import argparse
+
 import numpy as np
 import pandas as pd
-import wandb
-import argparse
-from torch.utils.data import Dataset, DataLoader
-
-from src.hnn import HypergraphNeuralNet
-from src.data import Data
-from src.dataset import HypergraphDataset
-from src.data_utils import *
-from src.eval_utils import *
-from src.train_utils import train
 import scanpy as sc
+import torch
+from torch.utils.data import DataLoader
+
+import wandb
+from src.data import Data
+from src.data_utils import *
+from src.dataset import HypergraphDataset
+from src.eval_utils import *
+from src.hnn import HypergraphNeuralNet
+from src.train_utils import train
 
 np.random.seed(0)
 num_workers = 4
 
-GTEX_FILE = 'data/GTEX_data.csv'
-METADATA_FILE = 'data/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt'
+GTEX_FILE = "data/GTEX_data.csv"
+METADATA_FILE = "data/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
+
 
 def GTEx(file=GTEX_FILE):
     """
@@ -34,9 +37,9 @@ def GTEx(file=GTEX_FILE):
     """
     # Load data
     df = pd.read_csv(file, index_col=0)  # .sample(frac=1, random_state=random_seed)
-    tissues = df['tissue'].values
+    tissues = df["tissue"].values
     sampl_ids = df.index.values
-    del df['tissue']
+    del df["tissue"]
     data = np.float32(df.values)
     gene_symbols = df.columns.values
     return data, gene_symbols, sampl_ids, tissues
@@ -48,8 +51,8 @@ def GTEx_metadata(file=METADATA_FILE):
     :param file: path of the file
     :return: Pandas DataFrame with subjects' information
     """
-    df = pd.read_csv(file, delimiter='\t')
-    df = df.set_index('SUBJID')
+    df = pd.read_csv(file, delimiter="\t")
+    df = df.set_index("SUBJID")
     return df
 
 
@@ -58,65 +61,173 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
     metadata_df = GTEx_metadata()
 
     adata = sc.AnnData(data)
-    adata.var['Symbol'] = gene_symbols
-    adata.obs['Participant ID'] = sampl_ids
-    adata.obs['Tissue'] = tissues
+    adata.var["Symbol"] = gene_symbols
+    adata.obs["Participant ID"] = sampl_ids
+    adata.obs["Tissue"] = tissues
 
     # Delete participants with only one measured tissue
-    adata = adata[adata.obs['Participant ID'].duplicated(keep=False)]
+    adata = adata[adata.obs["Participant ID"].duplicated(keep=False)]
 
     # Static keys
-    adata.obs['Tissue_idx'], tissue_dict = map_to_ids(adata.obs['Tissue'].values)
-    adata.uns['Tissue_dict'] = tissue_dict
+    adata.obs["Tissue_idx"], tissue_dict = map_to_ids(adata.obs["Tissue"].values)
+    adata.uns["Tissue_dict"] = tissue_dict
     # del adata.obs['Tissue']
 
     # Dynamic keys
-    adata.obs['Participant ID_dyn'] = adata.obs['Participant ID']
+    adata.obs["Participant ID_dyn"] = adata.obs["Participant ID"]
 
     # Populate participant features
-    adata.obs['Age'] = [float(a[:2]) for a in metadata_df.loc[adata.obs['Participant ID']]['AGE'].values]
-    adata.obs['Sex'] = metadata_df.loc[adata.obs['Participant ID']]['SEX'].values-1
-    donor_age = adata.obs['Age'] / 100
-    donor_sex, donor_sex_dict = map_to_ids(adata.obs['Sex'])
-    adata.obsm['Participant ID_feat'] = np.stack((donor_age, donor_sex), axis=-1)
-    adata.uns['Sex_dict'] = donor_sex_dict
+    adata.obs["Age"] = [
+        float(a[:2]) for a in metadata_df.loc[adata.obs["Participant ID"]]["AGE"].values
+    ]
+    adata.obs["Sex"] = metadata_df.loc[adata.obs["Participant ID"]]["SEX"].values - 1
+    donor_age = adata.obs["Age"] / 100
+    donor_sex, donor_sex_dict = map_to_ids(adata.obs["Sex"])
+    adata.obsm["Participant ID_feat"] = np.stack((donor_age, donor_sex), axis=-1)
+    adata.uns["Sex_dict"] = donor_sex_dict
 
     # Put gene expression in layer
-    adata.layers['x'] = adata.X
-    
+    adata.layers["x"] = adata.X
+
     # Set up tissue colors
-    colors = ['#ffaa56', '#cdad22', '#8fbc8f', '#8b1c62', '#ee6a50', '#ff0000', '#eeee00', '#eeee00', '#eeee00',
-          '#eeee00', '#eeee00', '#eeee00', '#eeee00', '#eeee00', '#eeee00', '#eeee00', '#eeee00', '#eeee00',
-          '#eeee00', '#00cdcd', '#9ac0cd', '#ee82ee', '#cdb79e', '#eec591', '#8b7355', '#8b7355', '#cdaa7d',
-          '#b452cd', '#7a378b', '#cdb79e', '#cdb79e', '#9acd32', '#cdb79e', '#7A67EE', '#FFD700', '#FFB6C1',
-          '#CD9B1D', '#B4EEB4', '#D9D9D9', '#3A5FCD', '#1E90FF', '#CDB79E', '#CDB79E', '#FFD39B', '#A6A6A6',
-          '#008B45', '#EED5D2', '#EED5D2', '#FF00FF']
-    adata.uns['Tissue_colors'] = colors
+    colors = [
+        "#ffaa56",
+        "#cdad22",
+        "#8fbc8f",
+        "#8b1c62",
+        "#ee6a50",
+        "#ff0000",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#eeee00",
+        "#00cdcd",
+        "#9ac0cd",
+        "#ee82ee",
+        "#cdb79e",
+        "#eec591",
+        "#8b7355",
+        "#8b7355",
+        "#cdaa7d",
+        "#b452cd",
+        "#7a378b",
+        "#cdb79e",
+        "#cdb79e",
+        "#9acd32",
+        "#cdb79e",
+        "#7A67EE",
+        "#FFD700",
+        "#FFB6C1",
+        "#CD9B1D",
+        "#B4EEB4",
+        "#D9D9D9",
+        "#3A5FCD",
+        "#1E90FF",
+        "#CDB79E",
+        "#CDB79E",
+        "#FFD39B",
+        "#A6A6A6",
+        "#008B45",
+        "#EED5D2",
+        "#EED5D2",
+        "#FF00FF",
+    ]
+    adata.uns["Tissue_colors"] = colors
 
     return adata
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', dest='config', default='configs/default.yaml', type=str)
+    parser.add_argument(
+        "--config", dest="config", default="configs/default.yaml", type=str
+    )
+    parser.add_argument(
+        "--target-genes", type=str, required=True, help="Path to target_genes_15.csv"
+    )
+    parser.add_argument(
+        "--topology-matrix",
+        type=str,
+        required=True,
+        help="Path to adjacency_matrix.csv",
+    )
+    parser.add_argument(
+        "--confounders", type=str, required=True, help="Path to confounders.csv"
+    )
+    parser.add_argument(
+        "--lambda-reg",
+        type=float,
+        default=0.0,
+        help="Graph Laplacian regularization weight",
+    )
+    parser.add_argument(
+        "--source-tissue",
+        nargs="+",
+        type=str,
+        default=["Whole Blood"],
+        help="List of source tissue(s)",
+    )
+    parser.add_argument(
+        "--target-tissue", type=str, default="Heart_Atrial", help="Target tissue"
+    )
     args, unknown = parser.parse_known_args()
 
     # Initialise wandb
-    wandb.init(project='multitissue_imputation', entity="multitissue_imputation_project", config=args.config)
+    run_name = f"{'_'.join(args.source_tissue)}_to_{args.target_tissue}_lambda{args.lambda_reg}"
+    wandb.init(
+        project="multitissue_imputation",
+        entity="r-sathe-indian-institute-of-technology",
+        name=run_name,
+        config=args.config,
+    )
     config = wandb.config
+    config.lambda_reg = args.lambda_reg
     print(config)
 
     # Load data
     adata = GTEx_v8_normalised_adata()
 
+    # Dynamic target genes bottleneck
+    target_genes_df = pd.read_csv(args.target_genes, index_col=0)
+    target_gene_names = target_genes_df.columns.values
+    gene_mask = np.isin(adata.var["Symbol"].values, target_gene_names)
+    adata = adata[:, gene_mask].copy()
+
+    # Sort columns exactly tracking the target subset order to align adjacency indices
+    df_var = adata.var.copy()
+    df_var["orig_idx"] = np.arange(len(df_var))
+    intersect_genes = [g for g in target_gene_names if g in df_var["Symbol"].values]
+    df_var = df_var.set_index("Symbol").loc[intersect_genes].reset_index()
+    adata = adata[:, df_var["orig_idx"].values].copy()
+
+    # Confounders override mapping tracking identical metadata distributions if subset
+    con_df = pd.read_csv(args.confounders, index_col=0)
+    subset_patients = adata.obs["Participant ID"].values
+    valid_map = np.isin(subset_patients, con_df.index)
+
+    # Adjacency Matrix
+    adjacency_matrix = load_adjacency_matrix(
+        args.topology_matrix, adata.var["Symbol"].values
+    )
+
     # Dictionaries
-    _, tissue_dict = map_to_ids(adata.obs['Tissue'])
+    _, tissue_dict = map_to_ids(adata.obs["Tissue"])
     tissue_dict_inv = {v: k for k, v in tissue_dict.items()}
 
     # Split train/val/test
-    donors = adata.obs['Participant ID'].values
-    train_donors = np.loadtxt('data/splits/gtex_train.txt', delimiter=',', dtype=str)
-    val_donors = np.loadtxt('data/splits/gtex_val.txt', delimiter=',', dtype=str)
-    test_donors = np.loadtxt('data/splits/gtex_test.txt', delimiter=',', dtype=str)
+    donors = adata.obs["Participant ID"].values
+    train_donors = np.loadtxt("data/splits/gtex_train.txt", delimiter=",", dtype=str)
+    val_donors = np.loadtxt("data/splits/gtex_val.txt", delimiter=",", dtype=str)
+    test_donors = np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str)
     train_mask = np.isin(donors, train_donors)
     test_mask = np.isin(donors, test_donors)
     val_mask = np.isin(donors, val_donors)
@@ -124,42 +235,74 @@ if __name__ == '__main__':
 
     collate_fn = Data.from_datalist
     dtype = torch.float32  # torch.double
-    target_tissues = ['Lung', 'Pancreas', 'Heart_Atrial', 'Esophagus_Muscularis']
-    source_tissues = [t for t in adata.obs['Tissue'].unique() if t not in target_tissues]  # All tissues except targets
+    target_tissues = [args.target_tissue]
+    source_tissues = args.source_tissue
 
-    train_dataset = HypergraphDataset(adata[train_mask], dtype=dtype, disjoint=True, static=False)
-    val_dataset = HypergraphDataset(adata[val_mask], dtype=dtype, disjoint=False, static=True, obs_source={'Tissue': source_tissues}, obs_target={'Tissue': target_tissues})
+    train_dataset = HypergraphDataset(
+        adata[train_mask], dtype=dtype, disjoint=True, static=False
+    )
+    val_dataset = HypergraphDataset(
+        adata[val_mask],
+        dtype=dtype,
+        disjoint=False,
+        static=True,
+        obs_source={"Tissue": source_tissues},
+        obs_target={"Tissue": target_tissues},
+    )
     # test_dataset = HypergraphDataset(adata[test_mask], dtype=dtype, static=True)
-    
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, collate_fn=collate_fn, shuffle=True, num_workers=num_workers)
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, collate_fn=collate_fn, shuffle=False, num_workers=num_workers)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        collate_fn=collate_fn,
+        shuffle=True,
+        num_workers=num_workers,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config.batch_size,
+        collate_fn=collate_fn,
+        shuffle=False,
+        num_workers=num_workers,
+    )
     # test_loader = DataLoader(test_dataset, batch_size=config.batch_size, collate_fn=collate_fn, shuffle=False, num_workers=num_workers)
 
     # device = torch.device("cpu")
     # Use certain GPU
-    device = torch.device("cuda:{}".format(config.gpu) if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda:{}".format(config.gpu) if torch.cuda.is_available() else "cpu"
+    )
 
     # Select dynamic/static node types
-    config.static_node_types = {'Tissue': (len(adata.obs['Tissue_idx'].unique()), config.d_tissue),
-                                'metagenes': (config.meta_G, config.d_gene)}
-    config.dynamic_node_types = {'Participant ID': (len(adata.obs['Participant ID'].unique()), config.d_patient)}
+    config.static_node_types = {
+        "Tissue": (len(adata.obs["Tissue_idx"].unique()), config.d_tissue),
+        "metagenes": (config.meta_G, config.d_gene),
+    }
+    config.dynamic_node_types = {
+        "Participant ID": (len(adata.obs["Participant ID"].unique()), config.d_patient)
+    }
 
     # Model
     config.G = adata.shape[-1]
     model = HypergraphNeuralNet(config).to(device)  # .double()
+    model.metagenes_decoder.adjacency_matrix = adjacency_matrix.to(device)
+    model.metagenes_decoder.lambda_reg = args.lambda_reg
 
     # Train
     def rho(x, out):
-        x_pred = out['px_rate'].detach().cpu().numpy()
+        x_pred = out["px_rate"].detach().cpu().numpy()
         return np.mean(pearson_correlation_score(x, x_pred, sample_corr=True))
-    metric_fns = [rho]
-    train(config,
-          model=model,
-          loader=train_loader,
-          val_loader=val_loader,
-          device=device,
-          preprocess_fn=None,
-          compute_metrics_train=False,
-          metric_fns=metric_fns)
 
-    torch.save(model.state_dict(), 'data/model.pth') 
+    metric_fns = [rho]
+    train(
+        config,
+        model=model,
+        loader=train_loader,
+        val_loader=val_loader,
+        device=device,
+        preprocess_fn=None,
+        compute_metrics_train=False,
+        metric_fns=metric_fns,
+    )
+
+    torch.save(model.state_dict(), "data/model.pth")

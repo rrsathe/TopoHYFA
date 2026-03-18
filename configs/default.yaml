@@ -37,7 +37,7 @@ n_hidden_layers_prior_var:
   desc: Number of hidden layers for computing prior var (identifiable VAE)
   value: 0
 meta_G:
-  value: 50
+  value: 4
 d_patient:
   value: 71
 d_gene:

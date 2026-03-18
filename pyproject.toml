@@ -1,0 +1,45 @@
+[project]
+name = "hyfa"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "torch==2.3.0",
+    "torch-scatter",
+    "torch-sparse",
+    "anndata",
+    "biopython",
+    "bioservices",
+    "gseapy",
+    "h5py",
+    "matplotlib",
+    "missingpy",
+    "networkx",
+    "numpy",
+    "pandas",
+    "pyyaml",
+    "scanpy",
+    "scikit-learn",
+    "scikit-misc",
+    "scipy",
+    "seaborn",
+    "statsmodels",
+    "supervenn",
+    "tqdm",
+    "umap-learn",
+    "wandb"
+]
+
+[tool.uv]
+# PyG doesn't use a standard PEP 503 index, so we still need find-links for torch-scatter/sparse
+find-links = ["https://data.pyg.org/whl/torch-2.3.0+cpu.html"]
+
+[tool.uv.sources]
+blitzgsea = { git = "https://github.com/MaayanLab/blitzgsea.git" }
+# Tell uv explicitly to fetch PyTorch from the custom index below
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+# The official PyTorch CPU index (PEP 503 compliant)
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
