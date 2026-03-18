@@ -21,6 +21,7 @@ dependencies = [
     "h5py",
     "matplotlib",
     "missingpy",
+    "nbformat",
     "networkx",
     "numpy",
     "pandas",
@@ -33,6 +34,7 @@ dependencies = [
     "statsmodels",
     "supervenn",
     "tqdm",
+    "types-networkx",
     "umap-learn",
     "wandb",
     "blitzgsea",
@@ -111,7 +113,9 @@ module = [
     "torch_sparse.*",
     "bioservices.*",
     "gseapy.*",
+    "blitzgsea.*",
     "missingpy.*",
     "supervenn.*",
+    "umap.*",
 ]
 ignore_missing_imports = true

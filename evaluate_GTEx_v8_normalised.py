@@ -12,6 +12,7 @@
 
 import argparse
 from collections import Counter
+from typing import Any, cast
 
 import blitzgsea as blitz
 import matplotlib
@@ -60,7 +61,7 @@ args, unknown = parser.parse_known_args()
 
 # Initialise wandb
 wandb.init(project="multitissue_imputation", config=args.config, mode="disabled")
-config = wandb.config
+config: Any = wandb.config
 print(config)
 
 
@@ -500,7 +501,7 @@ sample_corr = True
 score_fn = pearson_correlation_score
 
 source_tissues = ["Whole_Blood", "Skin_Sun_Epsd", "Skin_Not_Sun_Epsd", "Adipose_Subcutaneous"]
-ttissues = set(tissue_dict.keys())
+ttissues = list(tissue_dict.keys())
 ttissues = [t for t in ttissues if t not in source_tissues]
 source_name = "Accessible tissues"
 
@@ -803,7 +804,7 @@ source_col = []
 target_col = []
 
 # Target tissue
-ttissues = set(tissue_dict.keys())  # - set(['Testis', 'Cells_Cultured'])
+ttissues = list(tissue_dict.keys())  # - set(['Testis', 'Cells_Cultured'])
 ttissues = [t for t in ttissues if t not in source_tissues]
 
 for t in ttissues:
@@ -959,16 +960,16 @@ n_factors = config.d_edge_attr
 n_metagenes = config.meta_G
 
 results_df = pd.DataFrame()
-for f in range(n_factors):
-    print(f"Factor={f}")
+for factor_idx in range(n_factors):
+    print(f"Factor={factor_idx}")
     for m in range(n_metagenes):
-        gene_idxs = np.argsort(metagene_w[m, f, :])[::-1]
+        gene_idxs = np.argsort(metagene_w[m, factor_idx, :])[::-1]
         gene_names = adata.var["Symbol"][gene_idxs].values
-        gene_values = metagene_w[m, f, gene_idxs]
+        gene_values = metagene_w[m, factor_idx, gene_idxs]
         signature = pd.DataFrame({0: gene_names, 1: gene_values})
 
         result = blitz.gsea(signature, library, permutations=2000, signature_cache=True)
-        result["Factor"] = f
+        result["Factor"] = factor_idx
         result["Metagene"] = m
         results_df = pd.concat([results_df, result], axis=0)
 
@@ -995,13 +996,13 @@ cmap = plt.get_cmap("tab10")
 
 n_metagenes = 50
 n_factors = 99
-for f in range(n_factors):
-    df = results_df[results_df["Factor"] == f]
+for factor_idx in range(n_factors):
+    df = results_df[results_df["Factor"] == factor_idx]
     for x in range(n_metagenes):
         df_meta = df[df["Metagene"] == x]
         y = -np.log10(df_meta["fdr"].values)
-        x_pos = [f + (x / n_metagenes)] * len(y)
-        ax.scatter(x_pos, y, s=1, color=cmap(f % 10))
+        x_pos = [factor_idx + (x / n_metagenes)] * len(y)
+        ax.scatter(x_pos, y, s=1, color=cmap(factor_idx % 10))
 plt.xlabel("Factor")
 plt.ylabel("$-\log_{10}(q)$")
 plt.title("All human pathways (KEGG)")
@@ -1023,12 +1024,12 @@ cmap = plt.get_cmap("tab10")
 
 n_metagenes = 50
 n_factors = 99
-for f in range(n_factors):
-    df = results_df[results_df["Factor"] == f]
+for factor_idx in range(n_factors):
+    df = results_df[results_df["Factor"] == factor_idx]
     for x in range(n_metagenes):
         df_meta = df[df["Metagene"] == x]
         y = -np.log10(df_meta["fdr"].values)
-        x_pos = [x + (f / n_factors)] * len(y)
+        x_pos = [x + (factor_idx / n_factors)] * len(y)
         ax.scatter(x_pos, y, s=1, color=cmap(x % 10))
 plt.xlabel("Metagene")
 plt.ylabel("$-\log_{10}(q)$")
@@ -1037,7 +1038,7 @@ locs = list(range(n_metagenes))
 # plt.xticks(locs, rotation = 90)
 plt.gca().set_xticklabels("")
 plt.gca().set_xticks(np.array(locs) + 0.5, minor=True)
-plt.gca().set_xticklabels(locs, minor=True)
+plt.gca().set_xticklabels([str(loc) for loc in locs], minor=True)
 plt.xlim((-1, 51))
 # plt.axhline(y = -np.log10(0.05), color = 'gray', linestyle = '--', linewidth=1)
 # plt.savefig(f'{RESULTS_DIR}/figures/manhattan_metagenes_blitzgsea.pdf', bbox_inches='tight');
@@ -1116,14 +1117,14 @@ results_df_significant["Category"] = results_df_significant.index.map(families_d
 # In[ ]:
 
 
-def f(a):
+def unique_in_order(a):
     indexes = np.unique(a, return_index=True)[1]
     return a[np.sort(indexes)]
 
 
-sorted_idxs = np.argsort(results_df_significant["Category"].values)
+sorted_idxs = np.argsort(np.asarray(results_df_significant["Category"].values))
 
-f(np.array(results_df_significant["class"].values))
+unique_in_order(np.array(results_df_significant["class"].values))
 
 
 # In[ ]:
@@ -1170,13 +1171,14 @@ results_df_significant[results_df_significant["class"] == "Neurodegenerative dis
 cutoff = 0.05
 aggregated_df = pd.DataFrame()
 for m in range(50):
-    df = (
+    agg_slice_df = cast(
+        pd.DataFrame,
         results_df[results_df["Metagene"] == m]
         .reset_index()[["Term", "fdr", "Factor"]]
         .set_index(["Term", "Factor"])
-        .unstack()
+        .unstack(),
     )
-    aggregated_df[m] = df.min(axis=1)
+    aggregated_df[m] = agg_slice_df.min(axis=1)
 
 
 # In[ ]:
@@ -1194,11 +1196,11 @@ neurodegenerative_pathways = [
 
 min_fdr_per_term = aggregated_df.min(axis=1)
 mean_fdr_per_term = aggregated_df.mean(axis=1)
-df = aggregated_df[min_fdr_per_term < 0.05]
+df = cast(pd.DataFrame, aggregated_df[min_fdr_per_term < 0.05])
 mask = [s in neurodegenerative_pathways for s in df.index]
-df = df[mask]
+df = cast(pd.DataFrame, df[mask])
 fdr_mask = df.values < 0.05
-df = -np.log10(df + 1e-10)
+df = -(df + 1e-10).apply(np.log10)
 
 
 # In[ ]:
@@ -1211,9 +1213,9 @@ sum([s in neurodegenerative_pathways for s in results_df[results_df["fdr"] < 0.0
 
 
 sns.reset_orig()
-x = np.arange(50)
-y = np.arange(df.shape[0])
-x_, y_ = np.meshgrid(x, y)
+x_axis = np.arange(50)
+y_ticks = np.arange(df.shape[0])
+x_, y_ = np.meshgrid(x_axis, y_ticks)
 sizes = 20 * df.values  # 0.01/(df.values+1e-5)
 
 sizes = sizes[fdr_mask]
@@ -1222,10 +1224,10 @@ y_ = y_[fdr_mask]
 c = df.values[fdr_mask]
 
 plt.figure(figsize=(15, 8))
-cmap = plt.cm.plasma
+cmap = plt.get_cmap("plasma")
 norm = matplotlib.colors.Normalize()
 plt.scatter(x_.flatten(), y_.flatten(), s=sizes, c=c, norm=norm, cmap=cmap)
-plt.yticks(ticks=y, labels=df.index.values)
+plt.yticks(ticks=y_ticks, labels=[str(label) for label in df.index.values])
 cbar = plt.colorbar(fraction=0.03)
 cbar.set_label("$-\log_{10}(q)$", rotation=270, labelpad=10)
 
@@ -1249,14 +1251,15 @@ plt.savefig(
 
 cutoff = 0.05
 aggregated_df = pd.DataFrame()
-for f in range(99):
-    df = (
-        results_df[results_df["Factor"] == f]
+for factor_idx in range(99):
+    agg_slice_df = cast(
+        pd.DataFrame,
+        results_df[results_df["Factor"] == factor_idx]
         .reset_index()[["Term", "fdr", "Metagene"]]
         .set_index(["Term", "Metagene"])
-        .unstack()
+        .unstack(),
     )
-    aggregated_df[f] = df.min(axis=1)
+    aggregated_df[factor_idx] = agg_slice_df.min(axis=1)
 
 
 # In[ ]:
@@ -1272,11 +1275,11 @@ signaling_pathways = [
 
 min_fdr_per_term = aggregated_df.min(axis=1)
 mean_fdr_per_term = aggregated_df.mean(axis=1)
-df = aggregated_df[min_fdr_per_term < 0.05]
+df = cast(pd.DataFrame, aggregated_df[min_fdr_per_term < 0.05])
 mask = [s in signaling_pathways for s in df.index]
-df = df[mask]
+df = cast(pd.DataFrame, df[mask])
 fdr_mask = df.values < 0.05
-df = -np.log10(df + 1e-10)
+df = -(df + 1e-10).apply(np.log10)
 
 
 # In[ ]:
@@ -1289,9 +1292,9 @@ sum([s in signaling_pathways for s in results_df[results_df["fdr"] < 0.05].index
 
 
 sns.reset_orig()
-x = np.arange(99)
-y = np.arange(df.shape[0])
-x_, y_ = np.meshgrid(x, y)
+x_axis = np.arange(99)
+y_ticks = np.arange(df.shape[0])
+x_, y_ = np.meshgrid(x_axis, y_ticks)
 sizes = 50 * df.values  # 0.01/(df.values+1e-5)
 
 sizes = sizes[fdr_mask]
@@ -1300,10 +1303,10 @@ y_ = y_[fdr_mask]
 c = df.values[fdr_mask]
 
 plt.figure(figsize=(25, 15))
-cmap = plt.cm.plasma
+cmap = plt.get_cmap("plasma")
 norm = matplotlib.colors.Normalize()
 plt.scatter(x_.flatten(), y_.flatten(), s=sizes, c=c, norm=norm, cmap=cmap)
-plt.yticks(ticks=y, labels=df.index.values)
+plt.yticks(ticks=y_ticks, labels=[str(label) for label in df.index.values])
 cbar = plt.colorbar(fraction=0.03)
 cbar.set_label("$-\log_{10}(q)$", rotation=270, labelpad=10)
 
@@ -1352,11 +1355,11 @@ participant_idxs = [aux_val_dataset_.donor_map[p] for p in participant_idxs]
 # In[ ]:
 
 
-with open("results/encoded_metagenes_brain_cortex.npy", "wb") as f:
-    np.save(f, x_source)
+with open("results/encoded_metagenes_brain_cortex.npy", "wb") as fh:
+    np.save(fh, x_source)
 
-with open("results/participant_idxs_brain_cortex.npy", "wb") as f:
-    np.save(f, participant_idxs)
+with open("results/participant_idxs_brain_cortex.npy", "wb") as fh:
+    np.save(fh, participant_idxs)
 
 
 # In[ ]:
@@ -1392,9 +1395,9 @@ x_2d = umap.UMAP(random_state=0).fit_transform(x)
 
 plt.figure(figsize=(4, 4))
 y = subject_df.loc[participant_idxs][key]
-plt.scatter(x_2d[y == 0, 0], x_2d[y == 0, 1], s=20, cmap=matplotlib.cm.summer, label="Control")
+plt.scatter(x_2d[y == 0, 0], x_2d[y == 0, 1], s=20, cmap=plt.get_cmap("summer"), label="Control")
 plt.gca().scatter(
-    x_2d[y == 1, 0], x_2d[y == 1, 1], s=50, marker="^", cmap=matplotlib.cm.summer, label="ALZDMT"
+    x_2d[y == 1, 0], x_2d[y == 1, 1], s=50, marker="^", cmap=plt.get_cmap("summer"), label="ALZDMT"
 )
 plt.legend(loc="upper left")
 plt.title("Alzheimer or dementia (brain cortex)")
@@ -1407,7 +1410,9 @@ Counter(y), Counter(subject_df[key])
 # In[ ]:
 
 
-significant_results_df.loc["AMYOTROPHIC LATERAL SCLEROSIS"].sort_values("fdr")
+significant_results_df.reset_index().query("Term == 'AMYOTROPHIC LATERAL SCLEROSIS'").sort_values(
+    by="fdr"
+)
 
 
 # In[ ]:
@@ -1436,11 +1441,11 @@ participant_idxs = [aux_val_dataset_.donor_map[p] for p in participant_idxs]
 # In[ ]:
 
 
-with open("results/encoded_metagenes_brain_spinal_cord.npy", "wb") as f:
-    np.save(f, x_source)
+with open("results/encoded_metagenes_brain_spinal_cord.npy", "wb") as fh:
+    np.save(fh, x_source)
 
-with open("results/participant_idxs_brain_spinal_cord.npy", "wb") as f:
-    np.save(f, participant_idxs)
+with open("results/participant_idxs_brain_spinal_cord.npy", "wb") as fh:
+    np.save(fh, participant_idxs)
 
 
 # In[ ]:
@@ -1454,9 +1459,9 @@ x_2d = umap.UMAP(random_state=0).fit_transform(x)
 
 plt.figure(figsize=(4, 4))
 y = subject_df.loc[participant_idxs][key]
-plt.scatter(x_2d[y == 0, 0], x_2d[y == 0, 1], s=20, cmap=matplotlib.cm.summer, label="Control")
+plt.scatter(x_2d[y == 0, 0], x_2d[y == 0, 1], s=20, cmap=plt.get_cmap("summer"), label="Control")
 plt.gca().scatter(
-    x_2d[y == 1, 0], x_2d[y == 1, 1], s=50, marker="^", cmap=matplotlib.cm.summer, label=key
+    x_2d[y == 1, 0], x_2d[y == 1, 1], s=50, marker="^", cmap=plt.get_cmap("summer"), label=key
 )
 plt.legend(loc="upper left")
 plt.title("Amyotrophic Lateral Sclerosis (spinal cord)")
@@ -1526,7 +1531,7 @@ def create_dataframe(participant_ids, tissue_ids, expression, donor_map, tissue_
 # In[ ]:
 
 
-dataset = HypergraphDataset(adata, static=True)
+dataset: Any = HypergraphDataset(adata, static=True)
 
 
 # In[ ]:
@@ -1534,13 +1539,14 @@ dataset = HypergraphDataset(adata, static=True)
 
 model.eval()
 # df_imputed = pd.DataFrame({'Participant ID': [], 'Tissue ID': [], })
-source_participant_ids = []
-source_tissue_ids = []
-source_expression = []
-target_participant_ids = []
-target_tissue_ids = []
-target_expression = []
-for i, d in tqdm(enumerate(dataset)):
+source_participant_ids: list[np.ndarray] = []
+source_tissue_ids: list[np.ndarray] = []
+source_expression: list[np.ndarray] = []
+target_participant_ids: list[np.ndarray] = []
+target_tissue_ids: list[np.ndarray] = []
+target_expression: list[np.ndarray] = []
+for i in tqdm(range(len(dataset))):
+    d = dataset[i]
     # Set target tissues to missing tissues
     d.target["Tissue"] = torch.tensor(
         [t for t in np.arange(len(tissue_dict)) if t not in d.source["Tissue"]]
@@ -1601,7 +1607,7 @@ t2t_scores = np.load(f"{RESULTS_DIR}/t2t_scores.npy")
 
 
 score_fn = pearson_correlation_score
-t2t_scores_dict = {}
+t2t_scores_dict: dict[str, dict[str, dict[str, float]]] = {}
 unseen_mask = np.logical_or(val_mask, test_mask)
 
 for st in tissue_dict:

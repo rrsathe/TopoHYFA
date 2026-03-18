@@ -5,7 +5,7 @@ Outputs per-gene Pearson/RMSE table, predictions CSV, and ground-truth CSV.
 
 import argparse
 import os
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -29,10 +29,10 @@ RESULTS_DIR = "results"
 # ── CLI ──────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", default="configs/default.yaml", type=str)
-args, _ = parser.parse_known_args()
+args, unknown_args = parser.parse_known_args()
 
 wandb.init(project="multitissue_imputation", config=args.config, mode="disabled")
-config = wandb.config
+config: Any = wandb.config
 
 # ── Data ─────────────────────────────────────────────────────────────
 print("Loading data...")
@@ -124,7 +124,7 @@ print(f"Evaluating: {source_tissues[0]} -> {target_tissues[0]}")
 
 with torch.no_grad():
     d = next(iter(aux_test_loader))
-    out, _ = forward(d, model, device, preprocess_fn=None)
+    out, _node_features = forward(d, model, device, preprocess_fn=None)
     y_pred = out["px_rate"].cpu().numpy()
     y_true = d.x_target.cpu().numpy()
 

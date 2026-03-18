@@ -3,6 +3,7 @@ Trains the model on GTEx data
 """
 
 import argparse
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -183,7 +184,7 @@ if __name__ == "__main__":
         name=run_name,
         config=args.config,
     )
-    config = wandb.config
+    config: Any = wandb.config
     config.lambda_reg = args.lambda_reg
     print(config)
 
