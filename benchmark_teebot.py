@@ -3,13 +3,15 @@ TEEBoT baseline benchmark: PCA + Linear Regression on the same
 Whole_Blood -> Heart_L_Vent split used by HYFA, producing a
 side-by-side comparison bar chart.
 """
-import os
+
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
+
 from src.baselines import PCA_linear_regression_baseline
 
 RESULTS_DIR = "results"
@@ -26,9 +28,11 @@ y_test_target = data["y_test_target"]
 y_hyfa_pred = data["y_test_pred"]
 gene_symbols = data["gene_symbols"]
 
-print(f"Train samples: {x_train_source.shape[0]}, "
-      f"Test samples: {x_test_source.shape[0]}, "
-      f"Genes: {len(gene_symbols)}")
+print(
+    f"Train samples: {x_train_source.shape[0]}, "
+    f"Test samples: {x_test_source.shape[0]}, "
+    f"Genes: {len(gene_symbols)}"
+)
 
 # ── TEEBoT baseline ─────────────────────────────────────────────────
 # Reshape covariates if multi-tissue (take first tissue slice)
@@ -38,7 +42,9 @@ if x_train_covs.ndim == 3:
 
 print("Running TEEBoT (PCA + Linear Regression) ...")
 y_teebot_pred = PCA_linear_regression_baseline(
-    x_train_source, y_train_target, x_test_source,
+    x_train_source,
+    y_train_target,
+    x_test_source,
     x_source_covs=x_train_covs,
     x_source_test_covs=x_test_covs,
     n_components=min(30, x_train_source.shape[1] - 1),
@@ -66,18 +72,24 @@ for i in range(len(gene_symbols)):
     teebot_rmse.append(np.sqrt(mean_squared_error(y_test_target[:, i], y_teebot_pred[:, i])))
 
 # ── Comparison table ─────────────────────────────────────────────────
-comp_df = pd.DataFrame({
-    "Gene": gene_symbols,
-    "HYFA_Pearson": hyfa_pearson,
-    "TEEBoT_Pearson": teebot_pearson,
-    "HYFA_RMSE": hyfa_rmse,
-    "TEEBoT_RMSE": teebot_rmse,
-})
+comp_df = pd.DataFrame(
+    {
+        "Gene": gene_symbols,
+        "HYFA_Pearson": hyfa_pearson,
+        "TEEBoT_Pearson": teebot_pearson,
+        "HYFA_RMSE": hyfa_rmse,
+        "TEEBoT_RMSE": teebot_rmse,
+    }
+)
 
 print("\n--- Side-by-side comparison ---")
 print(comp_df.to_string(index=False))
-print(f"\nHYFA  mean Pearson: {np.nanmean(hyfa_pearson):.4f}  |  TEEBoT mean Pearson: {np.nanmean(teebot_pearson):.4f}")
-print(f"HYFA  mean RMSE:    {np.mean(hyfa_rmse):.4f}  |  TEEBoT mean RMSE:    {np.mean(teebot_rmse):.4f}")
+print(
+    f"\nHYFA  mean Pearson: {np.nanmean(hyfa_pearson):.4f}  |  TEEBoT mean Pearson: {np.nanmean(teebot_pearson):.4f}"
+)
+print(
+    f"HYFA  mean RMSE:    {np.mean(hyfa_rmse):.4f}  |  TEEBoT mean RMSE:    {np.mean(teebot_rmse):.4f}"
+)
 
 comp_df.to_csv(f"{RESULTS_DIR}/hyfa_vs_teebot_comparison.csv", index=False)
 print(f"\nSaved comparison CSV -> {RESULTS_DIR}/hyfa_vs_teebot_comparison.csv")

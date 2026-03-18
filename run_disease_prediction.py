@@ -9,14 +9,16 @@ Compares disease-classification AUC using:
 
 Default phenotype: MHHTN (hypertension).
 """
-import os
+
 import argparse
+import os
+from contextlib import suppress
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LassoCV
-from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
 RESULTS_DIR = "results"
@@ -47,18 +49,17 @@ def run_disease_cv(X, y, n_folds=5, n_ensemble=10):
             model.fit(X_train, y_train)
             y_score = model.predict(X_test)
 
-            try:
+            with suppress(ValueError):
                 aucs.append(roc_auc_score(y_test, y_score))
-            except ValueError:
-                pass  # skip if AUC undefined
 
     return np.mean(aucs) if aucs else float("nan")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Disease prediction from imputed expression")
-    parser.add_argument("--phenotype", default="SEX",
-                        help="Phenotype column: SEX or DTHHRDY (default: SEX)")
+    parser.add_argument(
+        "--phenotype", default="SEX", help="Phenotype column: SEX or DTHHRDY (default: SEX)"
+    )
     parser.add_argument("--n-folds", type=int, default=5)
     parser.add_argument("--n-ensemble", type=int, default=10)
     args = parser.parse_args()
@@ -140,13 +141,15 @@ def main():
     print(f"  Blood surrogate AUC: {auc_blood:.4f}")
 
     # ── Save results ─────────────────────────────────────────────────
-    results = pd.DataFrame({
-        "Method": ["HYFA (imputed)", "Ground truth (Heart)", "Blood surrogate"],
-        "AUC": [auc_hyfa, auc_truth, auc_blood],
-        "Phenotype": [args.phenotype] * 3,
-        "N_cases": [n_cases] * 3,
-        "N_controls": [n_controls] * 3,
-    })
+    results = pd.DataFrame(
+        {
+            "Method": ["HYFA (imputed)", "Ground truth (Heart)", "Blood surrogate"],
+            "AUC": [auc_hyfa, auc_truth, auc_blood],
+            "Phenotype": [args.phenotype] * 3,
+            "N_cases": [n_cases] * 3,
+            "N_controls": [n_controls] * 3,
+        }
+    )
     print(f"\n{results.to_string(index=False)}")
 
     os.makedirs(RESULTS_DIR, exist_ok=True)

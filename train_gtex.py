@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 
 import wandb
 from src.data import Data
-from src.data_utils import *
+from src.data_utils import load_adjacency_matrix, map_to_ids
 from src.dataset import HypergraphDataset
-from src.eval_utils import *
+from src.eval_utils import pearson_correlation_score
 from src.hnn import HypergraphNeuralNet
 from src.train_utils import train
 
@@ -148,9 +148,7 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config", dest="config", default="configs/default.yaml", type=str
-    )
+    parser.add_argument("--config", dest="config", default="configs/default.yaml", type=str)
     parser.add_argument(
         "--target-genes", type=str, required=True, help="Path to target_genes_15.csv"
     )
@@ -160,9 +158,7 @@ if __name__ == "__main__":
         required=True,
         help="Path to adjacency_matrix.csv",
     )
-    parser.add_argument(
-        "--confounders", type=str, required=True, help="Path to confounders.csv"
-    )
+    parser.add_argument("--confounders", type=str, required=True, help="Path to confounders.csv")
     parser.add_argument(
         "--lambda-reg",
         type=float,
@@ -176,9 +172,7 @@ if __name__ == "__main__":
         default=["Whole Blood"],
         help="List of source tissue(s)",
     )
-    parser.add_argument(
-        "--target-tissue", type=str, default="Heart_Atrial", help="Target tissue"
-    )
+    parser.add_argument("--target-tissue", type=str, default="Heart_Atrial", help="Target tissue")
     args, unknown = parser.parse_known_args()
 
     # Initialise wandb
@@ -215,9 +209,7 @@ if __name__ == "__main__":
     valid_map = np.isin(subset_patients, con_df.index)
 
     # Adjacency Matrix
-    adjacency_matrix = load_adjacency_matrix(
-        args.topology_matrix, adata.var["Symbol"].values
-    )
+    adjacency_matrix = load_adjacency_matrix(args.topology_matrix, adata.var["Symbol"].values)
 
     # Dictionaries
     _, tissue_dict = map_to_ids(adata.obs["Tissue"])
@@ -238,9 +230,7 @@ if __name__ == "__main__":
     target_tissues = [args.target_tissue]
     source_tissues = args.source_tissue
 
-    train_dataset = HypergraphDataset(
-        adata[train_mask], dtype=dtype, disjoint=True, static=False
-    )
+    train_dataset = HypergraphDataset(adata[train_mask], dtype=dtype, disjoint=True, static=False)
     val_dataset = HypergraphDataset(
         adata[val_mask],
         dtype=dtype,
@@ -269,9 +259,7 @@ if __name__ == "__main__":
 
     # device = torch.device("cpu")
     # Use certain GPU
-    device = torch.device(
-        "cuda:{}".format(config.gpu) if torch.cuda.is_available() else "cpu"
-    )
+    device = torch.device(f"cuda:{config.gpu}" if torch.cuda.is_available() else "cpu")
 
     # Select dynamic/static node types
     config.static_node_types = {

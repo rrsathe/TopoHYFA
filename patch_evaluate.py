@@ -1,9 +1,10 @@
-import nbformat
 import sys
+
+import nbformat
 
 file_path = "evaluate_GTEx_v8_normalised.ipynb"
 try:
-    with open(file_path, "r") as f:
+    with open(file_path) as f:
         nb = nbformat.read(f, as_version=4)
 except Exception as e:
     print(f"Error reading notebook: {e}")
@@ -85,13 +86,15 @@ print(res_df.to_string(index=False))
 # and runs `for tt in target_tissues:`
 found = False
 for i, cell in enumerate(nb.cells):
-    if cell.cell_type == 'code':
-        if "sample_corr = True\n\ndef rho(x, x_pred):" in cell.source or "validate = False\nsource_tissues = ['Whole_Blood']" in cell.source:
-            # We replace this massive baseline script cell
-            nb.cells[i].source = new_eval_code
-            found = True
-            print(f"Replaced giant evaluation loop at cell index {i}.")
-            break
+    if cell.cell_type == "code" and (
+        "sample_corr = True\n\ndef rho(x, x_pred):" in cell.source
+        or "validate = False\nsource_tissues = ['Whole_Blood']" in cell.source
+    ):
+        # We replace this massive baseline script cell
+        nb.cells[i].source = new_eval_code
+        found = True
+        print(f"Replaced giant evaluation loop at cell index {i}.")
+        break
 
 if not found:
     new_cell = nbformat.v4.new_code_cell(new_eval_code)

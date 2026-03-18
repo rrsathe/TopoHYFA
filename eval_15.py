@@ -2,8 +2,9 @@
 Evaluate HYFA model on 15 target genes: Whole_Blood -> Heart_L_Vent.
 Outputs per-gene Pearson/RMSE table, predictions CSV, and ground-truth CSV.
 """
-import os
+
 import argparse
+import os
 from typing import cast
 
 import numpy as np
@@ -12,15 +13,14 @@ import torch
 from sklearn.metrics import mean_squared_error
 from torch.utils.data import DataLoader
 
+import wandb
+from src.data import Data
+from src.train_utils import forward
 from train_gtex import (
     GTEx_v8_normalised_adata,
     HypergraphDataset,
     HypergraphNeuralNet,
-    map_to_ids,
 )
-from src.data import Data
-from src.train_utils import forward
-import wandb
 
 GTEX_FILE = "data/GTEX_data.csv"
 MODEL_PATH = "data/model.pth"
@@ -39,9 +39,7 @@ print("Loading data...")
 adata = GTEx_v8_normalised_adata(file=GTEX_FILE)
 
 # Apply gene-subset filter identical to train_gtex.py
-target_genes_df = pd.read_csv(
-    "Imputation/output/HYFA_export/target_genes_15.csv", index_col=0
-)
+target_genes_df = pd.read_csv("Imputation/output/HYFA_export/target_genes_15.csv", index_col=0)
 target_gene_names = target_genes_df.columns.to_numpy(dtype=str)
 gene_symbols = np.asarray(adata.var["Symbol"], dtype=str)
 gene_mask = np.isin(gene_symbols, target_gene_names)
@@ -57,20 +55,14 @@ adata = adata[:, df_var["orig_idx"].values].copy()
 collate_fn = Data.from_datalist
 
 # ── Splits ───────────────────────────────────────────────────────────
-train_donors = np.atleast_1d(
-    np.loadtxt("data/splits/gtex_train.txt", delimiter=",", dtype=str)
-)
-test_donors = np.atleast_1d(
-    np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str)
-)
+train_donors = np.atleast_1d(np.loadtxt("data/splits/gtex_train.txt", delimiter=",", dtype=str))
+test_donors = np.atleast_1d(np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str))
 donors = np.asarray(adata.obs["Participant ID"].astype(str).to_numpy(), dtype=str)
 train_mask = np.isin(donors, train_donors)
 test_mask = np.isin(donors, test_donors)
 
 # ── Model ────────────────────────────────────────────────────────────
-device = torch.device(
-    "cuda:{}".format(config.gpu) if torch.cuda.is_available() else "cpu"
-)
+device = torch.device(f"cuda:{config.gpu}" if torch.cuda.is_available() else "cpu")
 config.update(
     {
         "static_node_types": {
@@ -156,9 +148,7 @@ print(f"\n--- HYFA Results for {target_tissues[0]} ({len(gene_symbols)} genes) -
 print(f"Mean Pearson Correlation: {mean_pearson:.4f}")
 print(f"Mean RMSE:                {mean_rmse:.4f}\n")
 
-res_df = pd.DataFrame(
-    {"Gene": gene_symbols, "Pearson": pearson_scores, "RMSE": rmse_scores}
-)
+res_df = pd.DataFrame({"Gene": gene_symbols, "Pearson": pearson_scores, "RMSE": rmse_scores})
 print(res_df.to_string(index=False))
 
 # ── Save outputs ─────────────────────────────────────────────────────
@@ -168,10 +158,7 @@ res_df.to_csv(f"{RESULTS_DIR}/heart_15_genes_eval.csv", index=False)
 print(f"\nSaved per-gene metrics  -> {RESULTS_DIR}/heart_15_genes_eval.csv")
 
 # Participant IDs for rows
-participant_ids = [
-    aux_test_dataset.donor_map[p]
-    for p in d.source["Participant ID"].cpu().numpy()
-]
+participant_ids = [aux_test_dataset.donor_map[p] for p in d.source["Participant ID"].cpu().numpy()]
 
 pred_df = pd.DataFrame(y_pred, columns=gene_symbols, index=participant_ids)
 pred_df.index.name = "Participant_ID"

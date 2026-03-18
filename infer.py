@@ -13,6 +13,7 @@ The input CSV must have the same gene columns (and order) that the model
 was trained on.  If you used prep_handoff.py to generate the training data,
 the column order is determined by Imputation/output/HYFA_export/target_genes_15.csv.
 """
+
 import argparse
 import os
 
@@ -21,11 +22,11 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from train_gtex import GTEx_v8_normalised_adata, HypergraphDataset, map_to_ids
+import wandb
 from src.data import Data
 from src.hnn import HypergraphNeuralNet
 from src.train_utils import forward
-import wandb
+from train_gtex import GTEx_v8_normalised_adata, HypergraphDataset
 
 
 def main():
@@ -38,12 +39,8 @@ def main():
     parser.add_argument(
         "--config", type=str, default="configs/default.yaml", help="Model config YAML"
     )
-    parser.add_argument(
-        "--source", type=str, default="Whole_Blood", help="Source tissue label"
-    )
-    parser.add_argument(
-        "--target", type=str, default="Heart_L_Vent", help="Target tissue label"
-    )
+    parser.add_argument("--source", type=str, default="Whole_Blood", help="Source tissue label")
+    parser.add_argument("--target", type=str, default="Heart_L_Vent", help="Target tissue label")
     parser.add_argument(
         "--input-csv",
         type=str,
@@ -89,9 +86,7 @@ def main():
     print(f"  Gene subset: {len(gene_symbols)} genes")
 
     # ── Model ────────────────────────────────────────────────────────
-    device = torch.device(
-        "cuda:{}".format(config.gpu) if torch.cuda.is_available() else "cpu"
-    )
+    device = torch.device(f"cuda:{config.gpu}" if torch.cuda.is_available() else "cpu")
     config.update(
         {
             "static_node_types": {
@@ -124,8 +119,8 @@ def main():
 
     # ── Build dataset ────────────────────────────────────────────────
     if args.input_csv is not None:
-        print(f"Custom input not yet supported in hypergraph dataset mode.")
-        print(f"Running on GTEx test set as demo instead.")
+        print("Custom input not yet supported in hypergraph dataset mode.")
+        print("Running on GTEx test set as demo instead.")
 
     # Use GTEx test set
     test_donors = np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str)
@@ -152,9 +147,7 @@ def main():
         out, _ = forward(d, model, device, preprocess_fn=None)
         y_pred = out["px_rate"].cpu().numpy()
 
-    participant_ids = [
-        aux_dataset.donor_map[p] for p in d.source["Participant ID"].cpu().numpy()
-    ]
+    participant_ids = [aux_dataset.donor_map[p] for p in d.source["Participant ID"].cpu().numpy()]
 
     pred_df = pd.DataFrame(y_pred, columns=gene_symbols, index=participant_ids)
     pred_df.index.name = "Participant_ID"
