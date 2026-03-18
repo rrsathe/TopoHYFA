@@ -30,34 +30,34 @@ class Data:
         if donor_adata_source is not None:
             for k in donor_adata_source.obs.columns:  # Static keys
                 v = donor_adata_source.obs[k]
-                if k.endswith('_idx'):
-                    self.source[k.replace('_idx', '')] = torch.as_tensor(np.asarray(v))
-                elif k.endswith('_dyn'):  # Dynamic IDs
-                    self.source_dynamic[k.replace('_dyn', '')] = v
-                elif k.endswith('_misc'):
-                    self.source_misc[k.replace('_misc', '')] = torch.as_tensor(np.asarray(v))
+                if k.endswith("_idx"):
+                    self.source[k.replace("_idx", "")] = torch.as_tensor(np.asarray(v))
+                elif k.endswith("_dyn"):  # Dynamic IDs
+                    self.source_dynamic[k.replace("_dyn", "")] = v
+                elif k.endswith("_misc"):
+                    self.source_misc[k.replace("_misc", "")] = torch.as_tensor(np.asarray(v))
 
             for k, v in donor_adata_source.obsm.items():
-                if k.endswith('_feat'):
-                    self.source_features[k.replace('_feat', '')] = torch.as_tensor(np.asarray(v))
+                if k.endswith("_feat"):
+                    self.source_features[k.replace("_feat", "")] = torch.as_tensor(np.asarray(v))
 
-            self.x_source = torch.tensor(donor_adata_source.layers['x'].toarray(), dtype=dtype)
+            self.x_source = torch.tensor(donor_adata_source.layers["x"].toarray(), dtype=dtype)
 
         if donor_adata_target is not None:
             for k in donor_adata_target.obs.columns:  # Static keys
                 v = donor_adata_target.obs[k]
-                if k.endswith('_idx'):
-                    self.target[k.replace('_idx', '')] = torch.as_tensor(np.asarray(v))
-                elif k.endswith('_dyn'):  # Dynamic IDs
-                    self.target_dynamic[k.replace('_dyn', '')] = v
-                elif k.endswith('_misc'):
-                    self.target_misc[k.replace('_misc', '')] = torch.as_tensor(np.asarray(v))
+                if k.endswith("_idx"):
+                    self.target[k.replace("_idx", "")] = torch.as_tensor(np.asarray(v))
+                elif k.endswith("_dyn"):  # Dynamic IDs
+                    self.target_dynamic[k.replace("_dyn", "")] = v
+                elif k.endswith("_misc"):
+                    self.target_misc[k.replace("_misc", "")] = torch.as_tensor(np.asarray(v))
 
             for k, v in donor_adata_target.obsm.items():
-                if k.endswith('_feat'):
-                    self.target_features[k.replace('_feat', '')] = torch.as_tensor(np.asarray(v))
+                if k.endswith("_feat"):
+                    self.target_features[k.replace("_feat", "")] = torch.as_tensor(np.asarray(v))
 
-            self.x_target = torch.tensor(donor_adata_target.layers['x'].toarray(), dtype=dtype)
+            self.x_target = torch.tensor(donor_adata_target.layers["x"].toarray(), dtype=dtype)
 
         # Store cell IDs
         self.map_dynamic_idxs()  # creates unique cell identifiers
@@ -67,6 +67,7 @@ class Data:
         Map dynamic elements to unique indices
         E.g. Creates unique identifiers for each cell in [0, nb_cells_in_data)
         """
+
         def increasing_index_map(values, features):
             map = {}
             out_indices = np.zeros_like(values, dtype=int)
@@ -78,8 +79,10 @@ class Data:
                 else:
                     idx = len(map)
                     out_indices[i] = idx
-                    out_features[idx] = features[i]  # Create features such that they return the appropriate value when
-                                                     # indexed by the dynamic idx
+                    out_features[idx] = features[
+                        i
+                    ]  # Create features such that they return the appropriate value when
+                    # indexed by the dynamic idx
                     map[v] = idx
             return out_indices, out_features, map
 
@@ -93,8 +96,8 @@ class Data:
 
             features = np.concatenate((self.source_features[k], self.target_features[k]))
             v_idxs, out_features, v_map = increasing_index_map(v, features)  # map_to_ids(v)
-            self.source[k] = torch.tensor(v_idxs[:v_source.shape[0]])
-            self.target[k] = torch.tensor(v_idxs[v_source.shape[0]:])
+            self.source[k] = torch.tensor(v_idxs[: v_source.shape[0]])
+            self.target[k] = torch.tensor(v_idxs[v_source.shape[0] :])
 
             # Concatenate features as they are shared between source and target
             # sf = self.source_features[k]

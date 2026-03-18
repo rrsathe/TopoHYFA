@@ -53,9 +53,7 @@ def get_reconstruction_loss(
     elif gene_likelihood == "poisson":
         reconst_loss = -Poisson(px_rate).log_prob(x)
     elif gene_likelihood == "normal":  # For normalised gene expression
-        reconst_loss = -torch.distributions.normal.Normal(
-            loc=px_rate, scale=px_r
-        ).log_prob(x)
+        reconst_loss = -torch.distributions.normal.Normal(loc=px_rate, scale=px_r).log_prob(x)
         # reconst_loss = F.mse_loss(px_rate, x)  # Note: Ignoring sd
     else:
         raise ValueError(f"Unknown gene_likelihood: {gene_likelihood}")

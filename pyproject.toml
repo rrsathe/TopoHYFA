@@ -1,7 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "hyfa"
 version = "0.1.0"
+description = "Hypergraph Factorization for multi-tissue gene expression imputation"
+readme = "README.md"
 requires-python = ">=3.12"
+authors = [{ name = "HYFA Team" }]
+license = "MIT"
 dependencies = [
     "torch==2.3.0",
     "torch-scatter",
@@ -26,9 +34,23 @@ dependencies = [
     "supervenn",
     "tqdm",
     "umap-learn",
-    "wandb"
+    "wandb",
+    "blitzgsea",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy", "pre-commit", "types-PyYAML"]
+
+[project.scripts]
+# Adjust the entry point depending on your actual module structure
+train-hyfa = "train_gtex:main"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+# ---------------------------------------------------------
+# uv-specific configurations
+# ---------------------------------------------------------
 [tool.uv]
 # PyG doesn't use a standard PEP 503 index, so we still need find-links for torch-scatter/sparse
 find-links = ["https://data.pyg.org/whl/torch-2.3.0+cpu.html"]
@@ -43,3 +65,42 @@ torch = [{ index = "pytorch-cpu" }]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+# ---------------------------------------------------------
+# Linting & Formatting (Ruff)
+# ---------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+# ---------------------------------------------------------
+# Testing (Pytest)
+# ---------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# ---------------------------------------------------------
+# Type Checking (Mypy)
+# ---------------------------------------------------------
+[[tool.mypy.overrides]]
+# Ignore missing imports for heavy scientific/ML libraries without stubs
+module = [
+    "anndata.*",
+    "scanpy.*",
+    "wandb.*",
+    "torch_scatter.*",
+    "torch_sparse.*",
+    "bioservices.*",
+    "gseapy.*",
+    "missingpy.*",
+    "supervenn.*",
+]
+ignore_missing_imports = true

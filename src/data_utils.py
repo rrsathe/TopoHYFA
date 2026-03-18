@@ -63,9 +63,7 @@ def select_overlapping_genes(adata_1, adata_2, var_key="Symbol"):
     :param adata_2: AnnData 2
     :return: Aligned AnnDatas
     """
-    overlapping_genes = np.intersect1d(
-        adata_1.var[var_key].values, adata_2.var[var_key].values
-    )
+    overlapping_genes = np.intersect1d(adata_1.var[var_key].values, adata_2.var[var_key].values)
 
     # Select overlapping genes between v8 and v9
     gene_mask_1 = [g in overlapping_genes for g in adata_1.var[var_key]]
@@ -225,9 +223,7 @@ def sparsify(node_map, genes, x=None):
     # - genes_: indicates to which patient each element (i, j) in the data matrix belongs to
     expanded_node_map = {}
     for k, v in node_map.items():
-        expanded_node_map[k] = torch.tile(
-            v[:, None], (1, nb_genes)
-        )  # Shape=(nb_samples, nb_genes)
+        expanded_node_map[k] = torch.tile(v[:, None], (1, nb_genes))  # Shape=(nb_samples, nb_genes)
     genes_ = torch.tile(genes[None, :], (nb_samples, 1))  # Shape=(nb_samples, nb_genes)
 
     # Construct hyperedge index
@@ -256,9 +252,7 @@ def densify(node_map, genes, hyperedge_index, hyperedge_attr):
     nb_samples = node_map[k].shape[0]
     row_mask = torch.full((nb_samples,), True)
     for k in node_map.keys():
-        row_mask = row_mask.to(node_map[k].device) & (
-            hyperedge_index[k][:, None] == node_map[k]
-        )
+        row_mask = row_mask.to(node_map[k].device) & (hyperedge_index[k][:, None] == node_map[k])
     # Shape row_mask = (nb_hyperedges=nb_samples*nb_metagenes, nb_samples)
     col_mask = hyperedge_index["metagenes"][:, None] == genes
     row = torch.where(row_mask)[1]

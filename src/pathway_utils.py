@@ -7,10 +7,11 @@ from pathlib import Path
 # Utilities to retrieve KEGG patways #
 ######################################
 
+
 def list_KEGG_human_pathways():
-    lines = REST.kegg_list('pathway', 'hsa').readlines()
-    symbols = np.array([s.split('\t')[0].split(':')[-1] for s in lines])
-    description = np.array([s.split('\t')[1].rstrip() for s in lines])
+    lines = REST.kegg_list("pathway", "hsa").readlines()
+    symbols = np.array([s.split("\t")[0].split(":")[-1] for s in lines])
+    description = np.array([s.split("\t")[1].rstrip() for s in lines])
     return symbols, description
 
 
@@ -23,24 +24,24 @@ def get_pathway_info(pathway):
     gene_symbols = set()
     diseases = set()
     drugs = set()
-    for line in pathway_file.rstrip().split('\n'):
+    for line in pathway_file.rstrip().split("\n"):
         section = line[:12].strip()  # section names are within 12 columns
-        if not section == '':
+        if not section == "":
             current_section = section
 
-        if current_section == 'DISEASE':
-            disease = line[12:].split(' ')[0]
+        if current_section == "DISEASE":
+            disease = line[12:].split(" ")[0]
             diseases.add(disease)
-        elif current_section == 'DRUG':
-            drug = line[12:].split(' ')[0]
+        elif current_section == "DRUG":
+            drug = line[12:].split(" ")[0]
             drugs.add(drug)
-        elif current_section == 'GENE':
+        elif current_section == "GENE":
             try:
-                gene_identifiers, gene_description = line[12:].split('; ')
+                gene_identifiers, gene_description = line[12:].split("; ")
                 gene_id, gene_symbol = gene_identifiers.split()
                 gene_symbols.add(gene_symbol)
             except ValueError:
-                print('WARNING: No gene found in {}'.format(line[12:]))
+                print("WARNING: No gene found in {}".format(line[12:]))
 
     return gene_symbols, diseases, drugs
 
@@ -76,8 +77,9 @@ def load_genes_pathway(pathway, gene_symbols, hp_desc, genes_p):
 # Genes belonging to signalling pathways #
 ##########################################
 
+
 def _load_pathway_mask(gene_symbols, key):
-    print('Loading KEGG pathways information ...')
+    print("Loading KEGG pathways information ...")
     hp, hp_desc = list_KEGG_human_pathways()
     genes_p = human_pathway_data(gene_symbols, hp)
     selected_pathways = [p for p in hp_desc if key in p]
@@ -90,18 +92,18 @@ def _load_pathway_mask(gene_symbols, key):
     return gene_mask
 
 
-def load_pathway_mask(gene_symbols, key='signaling'):
-    filename = 'pathways/{key}.npy'
+def load_pathway_mask(gene_symbols, key="signaling"):
+    filename = "pathways/{key}.npy"
     file = Path(filename)
 
     if file.is_file():
-        with open(filename, 'rb') as f:
+        with open(filename, "rb") as f:
             gene_mask = np.load(f)
         return gene_mask
 
     gene_mask = _load_pathway_mask(gene_symbols, key)
 
-    with open(filename, 'wb') as f:
+    with open(filename, "wb") as f:
         np.save(f, np.array(gene_mask))
 
     print('Selected {}/{} genes associated to "{}"'.format(gene_mask.sum(), len(gene_symbols), key))

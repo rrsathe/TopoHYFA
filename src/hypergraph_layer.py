@@ -10,8 +10,20 @@ from src.metagene_decoders import *
 
 
 class GATHypergraphLayer(torch.nn.Module):
-
-    def __init__(self, dynamic_node_types, static_node_types, d_edge_attr=1, d_edge=50, n_hidden_layers=2, n_heads=5, dropout=0.1, norm='batch', activation='relu', update_edge_attr=False, attention_strategy='patient'):
+    def __init__(
+        self,
+        dynamic_node_types,
+        static_node_types,
+        d_edge_attr=1,
+        d_edge=50,
+        n_hidden_layers=2,
+        n_heads=5,
+        dropout=0.1,
+        norm="batch",
+        activation="relu",
+        update_edge_attr=False,
+        attention_strategy="patient",
+    ):
         """
         :param d_patient: dimension of individual node features
         :param d_gene: dimension of metagene node features
@@ -46,40 +58,49 @@ class GATHypergraphLayer(torch.nn.Module):
         total_feature_dim = static_feature_dim + dynamic_feature_dim
 
         # Edge MLPs
-        self.edge_mlp = MLP(in_dim=total_feature_dim + d_edge_attr,
-                            out_dim=n_heads * d_edge,
-                            n_layers=n_hidden_layers,
-                            dropout=dropout,
-                            norm=norm,
-                            activation=activation)
+        self.edge_mlp = MLP(
+            in_dim=total_feature_dim + d_edge_attr,
+            out_dim=n_heads * d_edge,
+            n_layers=n_hidden_layers,
+            dropout=dropout,
+            norm=norm,
+            activation=activation,
+        )
 
         # Aggregator functions. Note: Currently only sum used as messages are currently weighted by attention scores
-        self.aggregators = ['sum']  # ['sum', 'max', 'min', 'mean', 'std']
+        self.aggregators = ["sum"]  # ['sum', 'max', 'min', 'mean', 'std']
 
         # TODO: Attention aggregation
         hdim = static_feature_dim
-        self.att_agg_mlp = nn.Sequential(nn.Linear(static_feature_dim, hdim, bias=False), nn.LeakyReLU(0.1),
-                                         nn.Linear(hdim, n_heads, bias=False))
+        self.att_agg_mlp = nn.Sequential(
+            nn.Linear(static_feature_dim, hdim, bias=False),
+            nn.LeakyReLU(0.1),
+            nn.Linear(hdim, n_heads, bias=False),
+        )
 
         # Dynamic node MLPs
         self.dynamic_node_mlp = nn.ModuleDict()
         for k, v in dynamic_node_types.items():
             n, dim = v
-            self.dynamic_node_mlp[k] = MLP(in_dim=dim + len(self.aggregators) * n_heads * d_edge,
-                                           out_dim=dim,
-                                           n_layers=n_hidden_layers,
-                                           dropout=dropout,
-                                           norm=norm,
-                                           activation=activation)
+            self.dynamic_node_mlp[k] = MLP(
+                in_dim=dim + len(self.aggregators) * n_heads * d_edge,
+                out_dim=dim,
+                n_layers=n_hidden_layers,
+                dropout=dropout,
+                norm=norm,
+                activation=activation,
+            )
 
         # Hyperedge attr update MLPs
         if update_edge_attr:
-            self.hyperedge_attr_mlp = MLP(in_dim=total_feature_dim + d_edge_attr,
-                                          out_dim=d_edge_attr,
-                                          n_layers=n_hidden_layers,
-                                          dropout=dropout,
-                                          norm=norm,
-                                          activation=activation)
+            self.hyperedge_attr_mlp = MLP(
+                in_dim=total_feature_dim + d_edge_attr,
+                out_dim=d_edge_attr,
+                n_layers=n_hidden_layers,
+                dropout=dropout,
+                norm=norm,
+                activation=activation,
+            )
 
     def forward(self, hyperedge_index, hyperedge_attr, node_features_per_node):
         """
@@ -110,7 +131,13 @@ class GATHypergraphLayer(torch.nn.Module):
 
         # Message passing
         m = self.messages(hyperedge_attr, node_features_e)
-        m_updates = self.aggregate(m, hyperedge_index, dynamic_node_features_e, static_node_features_e, dynamic_node_features)
+        m_updates = self.aggregate(
+            m,
+            hyperedge_index,
+            dynamic_node_features_e,
+            static_node_features_e,
+            dynamic_node_features,
+        )
         dynamic_node_features = self.update(dynamic_node_features, m_updates)
 
         # Update hyperedge attributes
@@ -134,12 +161,20 @@ class GATHypergraphLayer(torch.nn.Module):
         # Compute messages
         # print({k: node_features_e[k].shape for k in node_features_e.keys()})
         # print({k: node_features_e[k].get_device() for k in node_features_e.keys()})
-        catted_features = torch.cat([node_features_e[k] for k in sorted(node_features_e.keys())]
-                                    + [hyperedge_attr], dim=-1)
+        catted_features = torch.cat(
+            [node_features_e[k] for k in sorted(node_features_e.keys())] + [hyperedge_attr], dim=-1
+        )
         messages = self.edge_mlp(catted_features)
         return messages
 
-    def aggregate(self, messages, hyperedge_index, dynamic_node_features_e, static_node_features_e, dynamic_node_features):
+    def aggregate(
+        self,
+        messages,
+        hyperedge_index,
+        dynamic_node_features_e,
+        static_node_features_e,
+        dynamic_node_features,
+    ):
         """
         Aggregates all the messages sent to the same individual
         :param messages: torch tensor with shape (nb_hyperedges, message_dim)
@@ -151,7 +186,9 @@ class GATHypergraphLayer(torch.nn.Module):
         :return: Aggregated messages. Shape=(nb_individuals, message_dim)
         """
         # Compute attention coefficients based on static node features
-        catted_static_features = torch.cat([static_node_features_e[k] for k in sorted(static_node_features_e.keys())], dim=-1)
+        catted_static_features = torch.cat(
+            [static_node_features_e[k] for k in sorted(static_node_features_e.keys())], dim=-1
+        )
         e = self.att_agg_mlp(catted_static_features)  # Shape=(n_messages, n_heads)
 
         messages = torch.reshape(messages, (messages.shape[0], self.n_heads, -1))
@@ -170,10 +207,12 @@ class GATHypergraphLayer(torch.nn.Module):
             m = torch.reshape(m, (m.shape[0], -1))  # Shape=(n_messages, n_heads * d_edge)
 
             # Aggregate messages
-            m = message_aggregation(messages=m,
-                                    idxs=idxs,
-                                    dim_size=dynamic_node_features[k].shape[0],  # Number of nodes of original tensor
-                                    aggregators=self.aggregators)
+            m = message_aggregation(
+                messages=m,
+                idxs=idxs,
+                dim_size=dynamic_node_features[k].shape[0],  # Number of nodes of original tensor
+                aggregators=self.aggregators,
+            )
             aggregated_messages[k] = m
 
         return aggregated_messages
@@ -208,16 +247,29 @@ class GATHypergraphLayer(torch.nn.Module):
         assert self.update_edge_attr
 
         # Compute messages
-        catted_features = torch.cat([node_features_e[k] for k in sorted(node_features_e.keys())]
-                                    + [hyperedge_attr], dim=-1)
+        catted_features = torch.cat(
+            [node_features_e[k] for k in sorted(node_features_e.keys())] + [hyperedge_attr], dim=-1
+        )
         hyperedge_attr_updates = self.hyperedge_attr_mlp(catted_features)
 
         return hyperedge_attr_updates
 
 
 class MPNNHypergraphLayer(torch.nn.Module):
-
-    def __init__(self, dynamic_node_types, static_node_types, d_edge_attr=1, d_edge=50, n_hidden_layers=2, n_heads=5, dropout=0.1, norm='batch', activation='relu', update_edge_attr=False, attention_strategy='patient'):
+    def __init__(
+        self,
+        dynamic_node_types,
+        static_node_types,
+        d_edge_attr=1,
+        d_edge=50,
+        n_hidden_layers=2,
+        n_heads=5,
+        dropout=0.1,
+        norm="batch",
+        activation="relu",
+        update_edge_attr=False,
+        attention_strategy="patient",
+    ):
         """
         :param d_patient: dimension of individual node features
         :param d_gene: dimension of metagene node features
@@ -234,12 +286,12 @@ class MPNNHypergraphLayer(torch.nn.Module):
                - 'patient': Computes softmax over all incoming messages to patient
                - 'patient_metagene': Computes softmax for each metagene over all source tissues
                - 'patient_tissue': Computes softmax for each source tissue over all metagenes
-       
+
         Note: Some params are unused, e.g. n_heads.
         """
         super().__init__()
         self.update_edge_attr = update_edge_attr
-        
+
         # Compute dynamic/static feature dims
         dynamic_feature_dim = 0
         static_feature_dim = 0
@@ -252,35 +304,41 @@ class MPNNHypergraphLayer(torch.nn.Module):
         total_feature_dim = static_feature_dim + dynamic_feature_dim
 
         # Edge MLPs
-        self.edge_mlp = MLP(in_dim=total_feature_dim + d_edge_attr,
-                            out_dim=d_edge,
-                            n_layers=n_hidden_layers,
-                            dropout=dropout,
-                            norm=norm,
-                            activation=activation)
+        self.edge_mlp = MLP(
+            in_dim=total_feature_dim + d_edge_attr,
+            out_dim=d_edge,
+            n_layers=n_hidden_layers,
+            dropout=dropout,
+            norm=norm,
+            activation=activation,
+        )
 
         # Aggregator functions.
-        self.aggregators = ['mean']  # ['sum', 'max', 'min', 'mean', 'std']
+        self.aggregators = ["mean"]  # ['sum', 'max', 'min', 'mean', 'std']
 
         # Dynamic node MLPs
         self.dynamic_node_mlp = nn.ModuleDict()
         for k, v in dynamic_node_types.items():
             n, dim = v
-            self.dynamic_node_mlp[k] = MLP(in_dim=dim + len(self.aggregators) * d_edge,
-                                           out_dim=dim,
-                                           n_layers=n_hidden_layers,
-                                           dropout=dropout,
-                                           norm=norm,
-                                           activation=activation)
+            self.dynamic_node_mlp[k] = MLP(
+                in_dim=dim + len(self.aggregators) * d_edge,
+                out_dim=dim,
+                n_layers=n_hidden_layers,
+                dropout=dropout,
+                norm=norm,
+                activation=activation,
+            )
 
         # Hyperedge attr update MLPs
         if update_edge_attr:
-            self.hyperedge_attr_mlp = MLP(in_dim=total_feature_dim + d_edge_attr,
-                                          out_dim=d_edge_attr,
-                                          n_layers=n_hidden_layers,
-                                          dropout=dropout,
-                                          norm=norm,
-                                          activation=activation)
+            self.hyperedge_attr_mlp = MLP(
+                in_dim=total_feature_dim + d_edge_attr,
+                out_dim=d_edge_attr,
+                n_layers=n_hidden_layers,
+                dropout=dropout,
+                norm=norm,
+                activation=activation,
+            )
 
     def forward(self, hyperedge_index, hyperedge_attr, node_features_per_node):
         """
@@ -311,7 +369,13 @@ class MPNNHypergraphLayer(torch.nn.Module):
 
         # Message passing
         m = self.messages(hyperedge_attr, node_features_e)
-        m_updates = self.aggregate(m, hyperedge_index, dynamic_node_features_e, static_node_features_e, dynamic_node_features)
+        m_updates = self.aggregate(
+            m,
+            hyperedge_index,
+            dynamic_node_features_e,
+            static_node_features_e,
+            dynamic_node_features,
+        )
         dynamic_node_features = self.update(dynamic_node_features, m_updates)
 
         # Update hyperedge attributes
@@ -335,12 +399,20 @@ class MPNNHypergraphLayer(torch.nn.Module):
         # Compute messages
         # print({k: node_features_e[k].shape for k in node_features_e.keys()})
         # print({k: node_features_e[k].get_device() for k in node_features_e.keys()})
-        catted_features = torch.cat([node_features_e[k] for k in sorted(node_features_e.keys())]
-                                    + [hyperedge_attr], dim=-1)
+        catted_features = torch.cat(
+            [node_features_e[k] for k in sorted(node_features_e.keys())] + [hyperedge_attr], dim=-1
+        )
         messages = self.edge_mlp(catted_features)
         return messages
 
-    def aggregate(self, messages, hyperedge_index, dynamic_node_features_e, static_node_features_e, dynamic_node_features):
+    def aggregate(
+        self,
+        messages,
+        hyperedge_index,
+        dynamic_node_features_e,
+        static_node_features_e,
+        dynamic_node_features,
+    ):
         """
         Aggregates all the messages sent to the same individual
         :param messages: torch tensor with shape (nb_hyperedges, message_dim)
@@ -353,12 +425,13 @@ class MPNNHypergraphLayer(torch.nn.Module):
         """
         aggregated_messages = {}
         for k in dynamic_node_features_e.keys():
-            
             # Aggregate messages
-            m = message_aggregation(messages=messages,
-                                    idxs=hyperedge_index[k],
-                                    dim_size=dynamic_node_features[k].shape[0],  # Number of nodes of original tensor
-                                    aggregators=self.aggregators)
+            m = message_aggregation(
+                messages=messages,
+                idxs=hyperedge_index[k],
+                dim_size=dynamic_node_features[k].shape[0],  # Number of nodes of original tensor
+                aggregators=self.aggregators,
+            )
             aggregated_messages[k] = m
 
         return aggregated_messages
@@ -393,8 +466,9 @@ class MPNNHypergraphLayer(torch.nn.Module):
         assert self.update_edge_attr
 
         # Compute messages
-        catted_features = torch.cat([node_features_e[k] for k in sorted(node_features_e.keys())]
-                                    + [hyperedge_attr], dim=-1)
+        catted_features = torch.cat(
+            [node_features_e[k] for k in sorted(node_features_e.keys())] + [hyperedge_attr], dim=-1
+        )
         hyperedge_attr_updates = self.hyperedge_attr_mlp(catted_features)
 
         return hyperedge_attr_updates

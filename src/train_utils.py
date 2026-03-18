@@ -200,11 +200,7 @@ def train_step(
             else:
                 losses_all[k] = v_item * batch_size
 
-    out_losses = (
-        {k: v / total_samples for k, v in losses_all.items()}
-        if total_samples > 0
-        else {}
-    )
+    out_losses = {k: v / total_samples for k, v in losses_all.items()} if total_samples > 0 else {}
 
     if valid_batches > 0:
         out_losses["grad_norm"] = total_grad_norm / valid_batches
@@ -255,11 +251,7 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> Dict[str,
                 else:
                     losses_all[k] = v_item * batch_size
 
-    return (
-        {k: v / total_samples for k, v in losses_all.items()}
-        if total_samples > 0
-        else {}
-    )
+    return {k: v / total_samples for k, v in losses_all.items()} if total_samples > 0 else {}
 
 
 def encode(
@@ -288,9 +280,7 @@ def encode(
     hyperedge_index, hyperedge_attr = sparsify(data.source, metagenes, x=x_source)
 
     # Compute node features
-    node_features = model(
-        hyperedge_index, hyperedge_attr, dynamic_node_features=data.node_features
-    )
+    node_features = model(hyperedge_index, hyperedge_attr, dynamic_node_features=data.node_features)
 
     return node_features
 
@@ -323,9 +313,7 @@ def decode(
     )  # Out shape=(nb_metagenes, metagene_dim)
 
     # Densify data
-    x_pred_metagenes = densify(
-        data.target, metagenes, target_hyperedge_index, x_pred_metagenes
-    )
+    x_pred_metagenes = densify(data.target, metagenes, target_hyperedge_index, x_pred_metagenes)
 
     # Factor that multiplies library size (i.e. number of cells in the summed signature). For deconvolution experiment,
     # we set this value (extrinsic to the model) to the number of cells of the summed signature at train time. This is
@@ -383,9 +371,7 @@ def forward(
         node_features = (dynamic_node_features, static_node_features)
 
     # Decode
-    out = decode(
-        data, model, node_features, use_observed_library=use_observed_library, **kwargs
-    )
+    out = decode(data, model, node_features, use_observed_library=use_observed_library, **kwargs)
 
     return out, node_features
 
@@ -461,8 +447,6 @@ def compute_metrics(
 
     if metric_fns is not None:
         for metric_fn in metric_fns:
-            out_dict[metric_fn.__name__] = metric_fn(
-                data.x_target.detach().cpu().numpy(), out
-            )
+            out_dict[metric_fn.__name__] = metric_fn(data.x_target.detach().cpu().numpy(), out)
 
     return out_dict

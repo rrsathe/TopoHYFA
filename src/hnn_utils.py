@@ -1,13 +1,24 @@
 """
 Utilities for hypergraph neural network
 """
+
 import torch
 import torch.nn as nn
 import torch_scatter
 
 
 # Networks
-def MLP(in_dim, out_dim, h_dim=None, n_layers=1, dropout=0.1, bias=False, norm='batch', activation='relu', output_activation=None):
+def MLP(
+    in_dim,
+    out_dim,
+    h_dim=None,
+    n_layers=1,
+    dropout=0.1,
+    bias=False,
+    norm="batch",
+    activation="relu",
+    output_activation=None,
+):
     """
     Multi-layer perceptron
     :param in_dim: input dimension
@@ -61,18 +72,18 @@ def message_aggregation(messages, idxs, dim_size, aggregators=None):
     aggregators: list of aggregation functions (strings)
     """
     if aggregators is None:
-        aggregators = ['sum', 'max', 'min', 'mean', 'std']
+        aggregators = ["sum", "max", "min", "mean", "std"]
     agg = []
 
-    if 'sum' in aggregators:
+    if "sum" in aggregators:
         agg.append(torch_scatter.scatter_add(messages, idxs, dim=0, dim_size=dim_size))
-    if 'max' in aggregators:
+    if "max" in aggregators:
         agg.append(torch_scatter.scatter_max(messages, idxs, dim=0, dim_size=dim_size)[0])
-    if 'min' in aggregators:
+    if "min" in aggregators:
         agg.append(torch_scatter.scatter_min(messages, idxs, dim=0, dim_size=dim_size)[0])
-    if 'mean' in aggregators:
+    if "mean" in aggregators:
         agg.append(torch_scatter.scatter_mean(messages, idxs, dim=0, dim_size=dim_size))
-    if 'std' in aggregators:
+    if "std" in aggregators:
         agg.append(torch_scatter.scatter_std(messages, idxs, dim=0, dim_size=dim_size))
 
     return torch.cat(agg, dim=-1)
