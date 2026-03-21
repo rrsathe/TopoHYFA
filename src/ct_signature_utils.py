@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import Any, cast
 
 import numpy as np
 import scanpy as sc
@@ -19,6 +20,15 @@ def GTEx_v9_adata(file=GTEX_v9_FILE):
     adata.var["Symbol"] = adata.var["Approved symbol"]
 
     return adata
+
+
+def _to_memory_if_available(x: Any) -> Any:
+    if x is None:
+        raise ValueError("ct_adata_v9.X is None and cannot be stored in layers['x'].")
+    to_memory = getattr(x, "to_memory", None)
+    if callable(to_memory):
+        return to_memory()
+    return x
 
 
 def mask_differentially_expressed_genes(
@@ -114,7 +124,8 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
     ct_adata_v9.obs.index = ct_adata_v9.obs.index.astype(str)
 
     # Prepare adata for hypergraph dataset
-    ct_adata_v9.layers["x"] = ct_adata_v9.X
+    x_value = _to_memory_if_available(ct_adata_v9.X)
+    ct_adata_v9.layers["x"] = cast(Any, x_value)
     ct_adata_v9.obs["Participant ID_dyn"] = ct_adata_v9.obs["Participant ID"]
     ct_adata_v9.obs["Age"] = ct_adata_v9.obs["Age_bin"]
     if "Age_dict" in adata_v8.uns:
@@ -153,7 +164,8 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
     ct_adata_v9.uns["ct_dict"] = ct_dict
 
     # Set layers
-    ct_adata_v9.layers["x"] = ct_adata_v9.X
+    x_value = _to_memory_if_available(ct_adata_v9.X)
+    ct_adata_v9.layers["x"] = cast(Any, x_value)
 
     return ct_adata_v9
 

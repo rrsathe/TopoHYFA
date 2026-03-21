@@ -100,12 +100,14 @@ def main():
     # Encode labels as binary
     if args.phenotype == "SEX":
         # GTEx: 1=Male, 2=Female -> 0=Male, 1=Female
-        labels = (raw_labels.astype(float) - 1).astype(int)
-        valid = (labels == 0) | (labels == 1)
+        raw_numeric = pd.to_numeric(pd.Series(raw_labels), errors="coerce").to_numpy(dtype=float)
+        valid = (~np.isnan(raw_numeric)) & ((raw_numeric == 1.0) | (raw_numeric == 2.0))
+        labels = np.zeros(raw_numeric.shape[0], dtype=int)
+        labels[valid] = (raw_numeric[valid] - 1.0).astype(int)
     elif args.phenotype == "DTHHRDY":
         # Hardy scale: 0=Ventilator, 1=Violent/fast, 2=Fast natural, 3=Intermediate, 4=Slow
         # Binarize: 0 (ventilator) vs 1-4 (non-ventilator)
-        raw_numeric = pd.to_numeric(raw_labels, errors="coerce")
+        raw_numeric = pd.to_numeric(pd.Series(raw_labels), errors="coerce").to_numpy(dtype=float)
         labels = (raw_numeric > 0).astype(int)
         valid = ~np.isnan(raw_numeric)
     else:
@@ -114,10 +116,10 @@ def main():
         labels = labels.astype(int)
 
     common_ids = common_ids[valid]
-    labels = labels[valid]
+    labels = np.asarray(labels[valid], dtype=int)
 
-    n_cases = (labels == 1).sum()
-    n_controls = (labels == 0).sum()
+    n_cases = int(np.count_nonzero(labels == 1))
+    n_controls = int(np.count_nonzero(labels == 0))
     print(f"Phenotype: {args.phenotype}  |  Cases: {n_cases}  |  Controls: {n_controls}")
 
     if n_cases < 5 or n_controls < 5:

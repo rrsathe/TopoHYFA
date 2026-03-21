@@ -64,7 +64,7 @@ def human_pathway_data(gene_symbols, human_pathways):
 
 
 def load_genes_pathway(pathway, gene_symbols, hp_desc, genes_p):
-    pathway_idx = np.flatnonzero(np.core.defchararray.find(hp_desc, pathway) != -1)[0]
+    pathway_idx = np.flatnonzero(np.char.find(hp_desc, pathway) != -1)[0]
 
     # Genes from selected pathway
     genes_from_selected_pathway = genes_p[:, pathway_idx]
@@ -93,7 +93,7 @@ def _load_pathway_mask(gene_symbols, key):
 
 
 def load_pathway_mask(gene_symbols, key="signaling"):
-    filename = "pathways/{key}.npy"
+    filename = f"pathways/{key}.npy"
     file = Path(filename)
 
     if file.is_file():
@@ -102,6 +102,8 @@ def load_pathway_mask(gene_symbols, key="signaling"):
         return gene_mask
 
     gene_mask = _load_pathway_mask(gene_symbols, key)
+
+    file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(filename, "wb") as f:
         np.save(f, np.array(gene_mask))

@@ -7,13 +7,13 @@ All rights reserved.
 
 import warnings
 from collections.abc import Callable
+from typing import Any, cast
 
 import torch
 import torch.nn.functional as F
 from torch.distributions import Distribution, Gamma, Poisson, constraints
 from torch.distributions.utils import (
     broadcast_all,
-    lazy_property,
     logits_to_probs,
     probs_to_logits,
 )
@@ -110,7 +110,7 @@ def log_mixture_nb(
     mu_1: torch.Tensor,
     mu_2: torch.Tensor,
     theta_1: torch.Tensor,
-    theta_2: torch.Tensor,
+    theta_2: torch.Tensor | None,
     pi_logits: torch.Tensor,
     eps=1e-8,
 ):
@@ -264,11 +264,14 @@ class NegativeBinomial(Distribution):
         Raise ValueError if arguments do not match constraints
     """
 
-    arg_constraints = {
-        "mu": constraints.greater_than_eq(0),
-        "theta": constraints.greater_than_eq(0),
-    }
-    support = constraints.nonnegative_integer
+    @property
+    def arg_constraints(self) -> dict[str, Any]:
+        return {
+            "mu": constraints.greater_than_eq(0),
+            "theta": constraints.greater_than_eq(0),
+        }
+
+    support: Any = constraints.nonnegative_integer
 
     def __init__(
         self,
@@ -294,21 +297,25 @@ class NegativeBinomial(Distribution):
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
         else:
             mu, theta = broadcast_all(mu, theta)
+        assert mu is not None
+        assert theta is not None
         self.mu = mu
         self.theta = theta
         super().__init__(validate_args=validate_args)
 
     @property
     def mean(self):
-        return self.mu
+        return cast(torch.Tensor, self.mu)
 
     @property
     def variance(self):
-        return self.mean + (self.mean**2) / self.theta
+        return self.mean + (self.mean**2) / cast(torch.Tensor, self.theta)
 
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         if sample_shape is None:
             sample_shape = torch.Size()
+        elif not isinstance(sample_shape, torch.Size):
+            sample_shape = torch.Size(sample_shape)
         with torch.no_grad():
             gamma_d = self._gamma()
             p_means = gamma_d.sample(sample_shape)
@@ -330,10 +337,15 @@ class NegativeBinomial(Distribution):
                     stacklevel=2,
                 )
 
-        return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
+        return log_nb_positive(
+            value,
+            mu=cast(torch.Tensor, self.mu),
+            theta=cast(torch.Tensor, self.theta),
+            eps=self._eps,
+        )
 
     def _gamma(self):
-        return _gamma(self.theta, self.mu)
+        return _gamma(cast(torch.Tensor, self.theta), cast(torch.Tensor, self.mu))
 
 
 class ZeroInflatedNegativeBinomial(NegativeBinomial):
@@ -368,13 +380,16 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Raise ValueError if arguments do not match constraints
     """
 
-    arg_constraints = {
-        "mu": constraints.greater_than_eq(0),
-        "theta": constraints.greater_than_eq(0),
-        "zi_probs": constraints.half_open_interval(0.0, 1.0),
-        "zi_logits": constraints.real,
-    }
-    support = constraints.nonnegative_integer
+    @property
+    def arg_constraints(self) -> dict[str, Any]:
+        return {
+            "mu": constraints.greater_than_eq(0),
+            "theta": constraints.greater_than_eq(0),
+            "zi_probs": constraints.half_open_interval(0.0, 1.0),
+            "zi_logits": constraints.real,
+        }
+
+    support: Any = constraints.nonnegative_integer
 
     def __init__(
         self,
@@ -386,6 +401,9 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         zi_logits: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
+
+        if zi_logits is None:
+            raise ValueError("zi_logits must be specified for ZeroInflatedNegativeBinomial")
 
         super().__init__(
             total_count=total_count,
@@ -400,23 +418,21 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     @property
     def mean(self):
         pi = self.zi_probs
-        return (1 - pi) * self.mu
+        return (1 - pi) * cast(torch.Tensor, self.mu)
 
     @property
     def variance(self):
         raise NotImplementedError
 
-    @lazy_property
-    def zi_logits(self) -> torch.Tensor:
-        return probs_to_logits(self.zi_probs, is_binary=True)
-
-    @lazy_property
+    @property
     def zi_probs(self) -> torch.Tensor:
-        return logits_to_probs(self.zi_logits, is_binary=True)
+        return logits_to_probs(cast(torch.Tensor, self.zi_logits), is_binary=True)
 
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         if sample_shape is None:
             sample_shape = torch.Size()
+        elif not isinstance(sample_shape, torch.Size):
+            sample_shape = torch.Size(sample_shape)
         with torch.no_grad():
             samp = super().sample(sample_shape=sample_shape)
             is_zero = torch.rand_like(samp) <= self.zi_probs
@@ -433,7 +449,13 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                     UserWarning,
                     stacklevel=2,
                 )
-        return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
+        return log_zinb_positive(
+            value,
+            cast(torch.Tensor, self.mu),
+            cast(torch.Tensor, self.theta),
+            cast(torch.Tensor, self.zi_logits),
+            eps=1e-08,
+        )
 
 
 class NegativeBinomialMixture(Distribution):
@@ -459,14 +481,17 @@ class NegativeBinomialMixture(Distribution):
         Raise ValueError if arguments do not match constraints
     """
 
-    arg_constraints = {
-        "mu1": constraints.greater_than_eq(0),
-        "mu2": constraints.greater_than_eq(0),
-        "theta1": constraints.greater_than_eq(0),
-        "mixture_probs": constraints.half_open_interval(0.0, 1.0),
-        "mixture_logits": constraints.real,
-    }
-    support = constraints.nonnegative_integer
+    @property
+    def arg_constraints(self) -> dict[str, Any]:
+        return {
+            "mu1": constraints.greater_than_eq(0),
+            "mu2": constraints.greater_than_eq(0),
+            "theta1": constraints.greater_than_eq(0),
+            "mixture_probs": constraints.half_open_interval(0.0, 1.0),
+            "mixture_logits": constraints.real,
+        }
+
+    support: Any = constraints.nonnegative_integer
 
     def __init__(
         self,
@@ -488,7 +513,7 @@ class NegativeBinomialMixture(Distribution):
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
-            self.theta2 = broadcast_all(mu1, theta2)
+            _, self.theta2 = broadcast_all(mu1, theta2)
         else:
             self.theta2 = None
 
@@ -497,13 +522,15 @@ class NegativeBinomialMixture(Distribution):
         pi = self.mixture_probs
         return pi * self.mu1 + (1 - pi) * self.mu2
 
-    @lazy_property
+    @property
     def mixture_probs(self) -> torch.Tensor:
         return logits_to_probs(self.mixture_logits, is_binary=True)
 
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         if sample_shape is None:
             sample_shape = torch.Size()
+        elif not isinstance(sample_shape, torch.Size):
+            sample_shape = torch.Size(sample_shape)
         with torch.no_grad():
             pi = self.mixture_probs
             mixing_sample = torch.distributions.Bernoulli(pi).sample()
@@ -512,7 +539,7 @@ class NegativeBinomialMixture(Distribution):
                 theta = self.theta1
             else:
                 theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-            gamma_d = _gamma(mu, theta)
+            gamma_d = _gamma(theta, mu)
             p_means = gamma_d.sample(sample_shape)
 
             # Clamping as distributions objects can have buggy behaviors when
