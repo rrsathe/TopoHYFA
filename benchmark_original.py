@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -95,7 +95,7 @@ def main():
             found_genes.append(gene)
 
     # Convert to numpy array for indexing
-    gene_indices = np.array(gene_indices)
+    gene_indices_np = np.array(gene_indices)
 
     # 3. Setup Test Set (Whole Blood -> Heart)
     donors = adata.obs["Participant ID"].to_numpy(dtype=str)
@@ -164,26 +164,27 @@ def main():
             x_pred_genes = out["px_rate"]
 
             # Extract predictions and targets for 15 genes
-            pred = x_pred_genes.cpu().numpy()[:, gene_indices]
-            target = batch.x_target.cpu().numpy()[:, gene_indices]
+            pred = x_pred_genes.cpu().numpy()[:, gene_indices_np]
+            target = batch.x_target.cpu().numpy()[:, gene_indices_np]
 
             all_preds.append(pred)
             all_targets.append(target)
 
     log.info(f"Inference complete. Processed {len(all_preds)} batches.")
 
-    all_preds = np.concatenate(all_preds, axis=0)
-    all_targets = np.concatenate(all_targets, axis=0)
+    all_preds_arr = np.concatenate(all_preds, axis=0)
+    all_targets_arr = np.concatenate(all_targets, axis=0)
 
-    if len(all_preds) == 0:
+    if len(all_preds_arr) == 0:
         log.error("No samples were found in the test set. Check tissue filtering parameters.")
         return
 
     # 5. Calculate Pearson Correlation
-    correlations = []
+    correlations: list[float] = []
     for i in range(len(found_genes)):
-        if np.std(all_targets[:, i]) > 0 and np.std(all_preds[:, i]) > 0:
-            corr, _ = pearsonr(all_targets[:, i], all_preds[:, i])
+        if np.std(all_targets_arr[:, i]) > 0 and np.std(all_preds_arr[:, i]) > 0:
+            corr, _ = pearsonr(all_targets_arr[:, i], all_preds_arr[:, i])
+            corr = cast(float, corr)
         else:
             corr = 0.0
         correlations.append(corr)
@@ -196,7 +197,7 @@ def main():
     for gene, corr in zip(found_genes, correlations, strict=True):
         table.add_row(gene, f"{corr:.4f}")
 
-    avg_corr = np.mean(correlations)
+    avg_corr = float(np.mean(np.asarray(correlations, dtype=float)))
     table.add_section()
     table.add_row("AVERAGE", f"{avg_corr:.4f}", style="bold white")
 

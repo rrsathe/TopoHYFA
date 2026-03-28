@@ -15,6 +15,8 @@ from collections import Counter
 from typing import Any, cast
 
 import blitzgsea as blitz
+import blitzgsea.enrichr
+import blitzgsea.plot
 import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -425,7 +427,7 @@ results_df = pd.DataFrame(columns=["score", "source", "target", "method"])
 # In[ ]:
 
 
-sns.set(font_scale=1.6)
+sns.set_theme(font_scale=1.6)
 plt.figure(figsize=(20, 3))
 sns.barplot(
     y="score",
@@ -730,7 +732,7 @@ for t in ttissues:
 # In[ ]:
 
 
-sns.set(font_scale=1.6)
+sns.set_theme(font_scale=1.6)
 plt.figure(figsize=(20, 4))
 sns.barplot(
     y="score",
@@ -902,7 +904,7 @@ tt_2 = sorted(results_df["target"].unique())[mid_point:]
 results_df_1 = results_df[results_df["target"].isin(tt_1)]
 results_df_2 = results_df[results_df["target"].isin(tt_2)]
 
-sns.set(font_scale=1.6)
+sns.set_theme(font_scale=1.6)
 plt.figure(figsize=(20, 10))
 
 plt.subplot(2, 1, 1)
@@ -1196,9 +1198,9 @@ neurodegenerative_pathways = [
 
 min_fdr_per_term = aggregated_df.min(axis=1)
 mean_fdr_per_term = aggregated_df.mean(axis=1)
-df = cast(pd.DataFrame, aggregated_df[min_fdr_per_term < 0.05])
+df = aggregated_df[min_fdr_per_term < 0.05]
 mask = [s in neurodegenerative_pathways for s in df.index]
-df = cast(pd.DataFrame, df[mask])
+df = df[mask]
 fdr_mask = df.values < 0.05
 df = -(df + 1e-10).apply(np.log10)
 
@@ -1275,9 +1277,9 @@ signaling_pathways = [
 
 min_fdr_per_term = aggregated_df.min(axis=1)
 mean_fdr_per_term = aggregated_df.mean(axis=1)
-df = cast(pd.DataFrame, aggregated_df[min_fdr_per_term < 0.05])
+df = aggregated_df[min_fdr_per_term < 0.05]
 mask = [s in signaling_pathways for s in df.index]
-df = cast(pd.DataFrame, df[mask])
+df = df[mask]
 fdr_mask = df.values < 0.05
 df = -(df + 1e-10).apply(np.log10)
 

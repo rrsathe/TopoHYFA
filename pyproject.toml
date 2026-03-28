@@ -101,8 +101,20 @@ testpaths = ["tests"]
 addopts = "-q"
 
 # ---------------------------------------------------------
+# Type Checking (ty)
+# ---------------------------------------------------------
+[tool.ty.src]
+exclude = ["**/*.ipynb"]
+
+# ---------------------------------------------------------
 # Type Checking (Mypy)
 # ---------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+
 [[tool.mypy.overrides]]
 # Ignore missing imports for heavy scientific/ML libraries without stubs
 module = [

@@ -52,7 +52,7 @@ def run_disease_cv(X, y, n_folds=5, n_ensemble=10):
             with suppress(ValueError):
                 aucs.append(roc_auc_score(y_test, y_score))
 
-    return np.mean(aucs) if aucs else float("nan")
+    return float(np.mean(np.asarray(aucs, dtype=float))) if aucs else float("nan")
 
 
 def main():

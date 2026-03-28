@@ -2,6 +2,8 @@
 Defines hypergraph neural network
 """
 
+from typing import Any
+
 import torch
 import torch.nn as nn
 
@@ -22,7 +24,7 @@ class HypergraphNeuralNet(torch.nn.Module):
         self.var_eps = 1e-4
 
         # Gene and tissue embeddings
-        self.params = {}
+        params_dict: dict[str, nn.Parameter] = {}
 
         total_dim = 0
         for (
@@ -32,9 +34,9 @@ class HypergraphNeuralNet(torch.nn.Module):
             config.static_node_types.items()
         ):  # Nodes with learnable weights. They do not get updated in message passing
             n, dim = v
-            self.params[k] = nn.Parameter(nn.init.xavier_uniform_(torch.zeros((n, dim))))
+            params_dict[k] = nn.Parameter(nn.init.xavier_uniform_(torch.zeros((n, dim))))
             total_dim += dim
-        self.params = nn.ParameterDict(self.params)
+        self.params = nn.ParameterDict(params_dict)
 
         for (
             _k,
@@ -124,7 +126,7 @@ class HypergraphNeuralNet(torch.nn.Module):
         static_node_features = self.params
 
         # Expand shape of dynamic node features to match specifications
-        dynamic_node_features_ = {}
+        dynamic_node_features_: dict[str, Any] = {}
         for k, v in self.config.dynamic_node_types.items():
             _, spec_dim = v
             features = dynamic_node_features[k]

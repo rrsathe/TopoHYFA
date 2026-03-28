@@ -2,6 +2,7 @@ from collections import Counter
 from typing import Any, cast
 
 import numpy as np
+import pandas as pd
 import scanpy as sc
 import torch
 
@@ -17,7 +18,8 @@ GTEX_v9_FILE = "/local/scratch-2/rv340/GTEx/v9/GTEx_8_tissues_snRNAseq_atlas_071
 
 def GTEx_v9_adata(file=GTEX_v9_FILE):
     adata = sc.read(file)
-    adata.var["Symbol"] = adata.var["Approved symbol"]
+    approved_symbol_series = cast(pd.Series, adata.var["Approved symbol"])
+    adata.var["Symbol"] = approved_symbol_series
 
     return adata
 
@@ -125,19 +127,27 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
 
     # Prepare adata for hypergraph dataset
     x_value = _to_memory_if_available(ct_adata_v9.X)
-    ct_adata_v9.layers["x"] = cast(Any, x_value)
-    ct_adata_v9.obs["Participant ID_dyn"] = ct_adata_v9.obs["Participant ID"]
-    ct_adata_v9.obs["Age"] = ct_adata_v9.obs["Age_bin"]
+    ct_adata_v9.layers["x"] = x_value
+    participant_series = cast(pd.Series, ct_adata_v9.obs["Participant ID"])
+    age_bin_series = cast(pd.Series, ct_adata_v9.obs["Age_bin"])
+    sex_series = cast(pd.Series, ct_adata_v9.obs["Sex"])
+
+    ct_adata_v9.obs["Participant ID_dyn"] = participant_series
+    ct_adata_v9.obs["Age"] = age_bin_series
+    age_series = cast(pd.Series, ct_adata_v9.obs["Age"])
     if "Age_dict" in adata_v8.uns:
-        donor_age = ct_adata_v9.obs["Age"].map(adata_v8.uns["Age_dict"])
+        donor_age = age_series.map(adata_v8.uns["Age_dict"])
     else:
-        donor_age = ct_adata_v9.obs["Age"]
-    donor_sex = ct_adata_v9.obs["Sex"].map(adata_v8.uns["Sex_dict"])
-    ct_adata_v9.obsm["Participant ID_feat"] = np.stack((donor_age, donor_sex), axis=-1)
-    ct_adata_v9.obs["n_cells_misc"] = ct_adata_v9.obs["n_cells"]
+        donor_age = age_series
+    donor_sex = sex_series.map(adata_v8.uns["Sex_dict"])
+    ct_adata_v9.obsm["Participant ID_feat"] = np.stack(
+        (donor_age.to_numpy(), donor_sex.to_numpy()), axis=-1
+    )
+    ct_adata_v9.obs["n_cells_misc"] = cast(pd.Series, ct_adata_v9.obs["n_cells"])
 
     # Make tissue indices homogeneous
-    ct_adata_v9.obs["Tissue"].unique()
+    tissue_series = cast(pd.Series, ct_adata_v9.obs["Tissue"])
+    tissue_series.unique()
     tissue_dict_v9 = {
         "Skeletal muscle": 33,
         "Esophagus muscularis": 26,
@@ -149,23 +159,23 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
         "Breast": 19,
     }
     ct_adata_v9.uns["Tissue_dict"] = tissue_dict_v9
-    ct_adata_v9.obs["Tissue_idx"] = ct_adata_v9.obs["Tissue"].map(tissue_dict_v9)
+    ct_adata_v9.obs["Tissue_idx"] = tissue_series.map(tissue_dict_v9)
 
     # Discard underrepresented cell-types
     # TODO: Instead of discarding underrepresented cell-types, once could generate several profiles per individual-tissue-ct
     # by selecting a random subset of cell-types. This might allow to better capture the variation of each combination.
-    selected_ct = {
-        k: v for k, v in Counter(ct_adata_v9.obs[ct_key].values).items() if v >= threshold
-    }
+    ct_series = cast(pd.Series, ct_adata_v9.obs[ct_key])
+    selected_ct = {k: v for k, v in Counter(ct_series.to_numpy()).items() if v >= threshold}
     ct_adata_v9 = select_obs(ct_adata_v9, {ct_key: selected_ct.keys()})
 
     # Map to indices
-    ct_adata_v9.obs["Cell type_idx"], ct_dict = map_to_ids(ct_adata_v9.obs[ct_key].values)
+    ct_series = cast(pd.Series, ct_adata_v9.obs[ct_key])
+    ct_adata_v9.obs["Cell type_idx"], ct_dict = map_to_ids(ct_series.to_numpy())
     ct_adata_v9.uns["ct_dict"] = ct_dict
 
     # Set layers
     x_value = _to_memory_if_available(ct_adata_v9.X)
-    ct_adata_v9.layers["x"] = cast(Any, x_value)
+    ct_adata_v9.layers["x"] = x_value
 
     return ct_adata_v9
 
@@ -274,7 +284,7 @@ def ct_predict_v1(self, target_hyperedge_index, node_features, **kwargs):
     node_features_ = {**dynamic_node_features_, **static_node_features}
 
     # Construct modified node features
-    catted_features = []
+    catted_features: list[torch.Tensor] = []
     for k in sorted(node_features_.keys()):
         feat = node_features_[k][target_hyperedge_index[k]]
 
@@ -286,9 +296,9 @@ def ct_predict_v1(self, target_hyperedge_index, node_features, **kwargs):
 
         catted_features.append(feat)
 
-    catted_features = torch.cat(catted_features, dim=-1)
+    catted_features_tensor = torch.cat(catted_features, dim=-1)
 
-    return self.prediction_mlp(catted_features)
+    return self.prediction_mlp(catted_features_tensor)
 
 
 def ct_predict_v2(self, target_hyperedge_index, node_features, **kwargs):
@@ -313,11 +323,11 @@ def ct_predict_v2(self, target_hyperedge_index, node_features, **kwargs):
     node_features_ = {**dynamic_node_features_, **static_node_features}
 
     # Construct modified node features
-    catted_features = []
+    catted_features: list[torch.Tensor] = []
     for k in sorted(node_features_.keys()):
         feat = node_features_[k][target_hyperedge_index[k]]
         catted_features.append(feat)
 
-    catted_features = torch.cat(catted_features, dim=-1)
+    catted_features_tensor = torch.cat(catted_features, dim=-1)
 
-    return self.prediction_mlp(catted_features)
+    return self.prediction_mlp(catted_features_tensor)

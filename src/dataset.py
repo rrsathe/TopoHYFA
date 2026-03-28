@@ -2,6 +2,8 @@
 This file defines the Pytorch MultiTissueDataset
 """
 
+from typing import Any, cast
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -21,7 +23,7 @@ def default_sample_fn(donor_adata_source, donor_adata_target):
     return donor_adata_source, donor_adata_target
 
 
-class HypergraphDataset(Dataset):
+class HypergraphDataset(Dataset[Data]):
     """
     This MultiTissueDataset takes care of masking out individuals that do not have the specified source/target tissues
     as well as splitting data sampling the gene expression measurements from individuals according to the source/target
@@ -122,14 +124,13 @@ class HypergraphDataset(Dataset):
 
         return donor_adata_source, donor_adata_target
 
-    def __getitem__(self, i):
+    def __getitem__(self, index: Any) -> Data:
         """
         Return source/target samples for i-th individual
         :param i: Index in [0, nb_donors)
         :return: x_source, x_target, tissues_source, tissues_target, patients_source, patients_target
         """
-        if torch.is_tensor(i):
-            i = i.tolist()
+        i = int(cast(torch.Tensor, index).item()) if torch.is_tensor(index) else int(index)
 
         # Find sample indices in data matrix corresponding to patient pidx
         donor_adata_source, donor_adata_target = self._get_source_target(i, static=self.static)

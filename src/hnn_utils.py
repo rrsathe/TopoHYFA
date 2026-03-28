@@ -40,10 +40,10 @@ def MLP(
 
     norm_fn = {"layer": nn.LayerNorm, "batch": nn.BatchNorm1d, "none": None}[norm]
 
-    modules = []
+    modules: list[nn.Module] = []
     prev_dim = in_dim
     for _n in range(n_layers):
-        block = []
+        block: list[nn.Module] = []
         block.append(nn.Linear(prev_dim, h_dim))
         block.append(act_fn)
         block.append(nn.Dropout(p=dropout))

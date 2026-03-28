@@ -29,7 +29,7 @@ def _get_decoder_gene_weights(
     Resolve the decoder matrix mapping latent/metagene features to genes.
     """
     if "gene_weights" in out:
-        return out["gene_weights"]
+        return cast(torch.Tensor, out["gene_weights"])
 
     if model is None:
         return None
@@ -39,9 +39,9 @@ def _get_decoder_gene_weights(
         return None
 
     if hasattr(decoder, "px_rate_decoder") and len(decoder.px_rate_decoder) > 0:
-        return decoder.px_rate_decoder[0].weight
+        return cast(torch.Tensor, decoder.px_rate_decoder[0].weight)
     if hasattr(decoder, "px_scale_decoder") and len(decoder.px_scale_decoder) > 0:
-        return decoder.px_scale_decoder[0].weight
+        return cast(torch.Tensor, decoder.px_scale_decoder[0].weight)
     return None
 
 
@@ -282,7 +282,7 @@ def encode(
     # Compute node features
     node_features = model(hyperedge_index, hyperedge_attr, dynamic_node_features=data.node_features)
 
-    return node_features
+    return cast(tuple[dict[str, Any], dict[str, Any]], node_features)
 
 
 def decode(
@@ -337,7 +337,7 @@ def decode(
         x_pred_metagenes, log_library=log_library, n_cells=n_cells, **kwargs
     )
 
-    return out
+    return cast(dict[str, Any], out)
 
 
 def forward(

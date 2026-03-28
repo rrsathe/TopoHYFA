@@ -83,12 +83,12 @@ def _load_pathway_mask(gene_symbols, key):
     hp, hp_desc = list_KEGG_human_pathways()
     genes_p = human_pathway_data(gene_symbols, hp)
     selected_pathways = [p for p in hp_desc if key in p]
-    selected_genes = []
+    selected_genes: list[str] = []
     for p in selected_pathways:
         g = load_genes_pathway(p, gene_symbols, hp_desc, genes_p)
         selected_genes.extend(g)
-    selected_genes = np.unique(selected_genes)
-    gene_mask = np.array([g in selected_genes for g in gene_symbols])
+    selected_genes_unique = np.unique(selected_genes)
+    gene_mask = np.array([g in selected_genes_unique for g in gene_symbols])
     return gene_mask
 
 

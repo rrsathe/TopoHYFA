@@ -110,7 +110,7 @@ def main():
         },
         allow_val_change=True,
     )
-    config.G = adata.shape[-1]
+    config.update({"G": adata.shape[-1]}, allow_val_change=True)
 
     model = HypergraphNeuralNet(config).to(device)
     print(f"Loading weights from {args.weights} ...")

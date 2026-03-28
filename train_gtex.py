@@ -3,7 +3,7 @@ Trains the model on GTEx data
 """
 
 import argparse
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -66,29 +66,39 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
     adata.obs["Participant ID"] = sampl_ids
     adata.obs["Tissue"] = tissues
 
+    participant_series = cast(pd.Series, adata.obs["Participant ID"])
+
     # Delete participants with only one measured tissue
-    adata = adata[adata.obs["Participant ID"].duplicated(keep=False)]
+    adata = adata[participant_series.duplicated(keep=False)]
 
     # Static keys
-    adata.obs["Tissue_idx"], tissue_dict = map_to_ids(adata.obs["Tissue"].values)
+    tissue_series = cast(pd.Series, adata.obs["Tissue"])
+    adata.obs["Tissue_idx"], tissue_dict = map_to_ids(tissue_series.to_numpy())
     adata.uns["Tissue_dict"] = tissue_dict
     # del adata.obs['Tissue']
 
     # Dynamic keys
-    adata.obs["Participant ID_dyn"] = adata.obs["Participant ID"]
+    participant_series = cast(pd.Series, adata.obs["Participant ID"])
+    adata.obs["Participant ID_dyn"] = participant_series
 
     # Populate participant features
-    adata.obs["Age"] = [
-        float(a[:2]) for a in metadata_df.loc[adata.obs["Participant ID"]]["AGE"].values
-    ]
-    adata.obs["Sex"] = metadata_df.loc[adata.obs["Participant ID"]]["SEX"].values - 1
-    donor_age = adata.obs["Age"] / 100
-    donor_sex, donor_sex_dict = map_to_ids(adata.obs["Sex"])
+    age_values = metadata_df.loc[participant_series.to_numpy(), "AGE"].to_numpy()
+    adata.obs["Age"] = np.asarray([float(a[:2]) for a in age_values], dtype=float)
+
+    sex_values = metadata_df.loc[participant_series.to_numpy(), "SEX"].to_numpy()
+    adata.obs["Sex"] = np.asarray(sex_values, dtype=float) - 1
+
+    age_series = cast(pd.Series, adata.obs["Age"])
+    sex_series = cast(pd.Series, adata.obs["Sex"])
+    donor_age = age_series.to_numpy(dtype=float) / 100
+    donor_sex, donor_sex_dict = map_to_ids(sex_series.to_numpy())
     adata.obsm["Participant ID_feat"] = np.stack((donor_age, donor_sex), axis=-1)
     adata.uns["Sex_dict"] = donor_sex_dict
 
     # Put gene expression in layer
-    adata.layers["x"] = adata.X
+    if adata.X is None:
+        raise ValueError("adata.X is None and cannot be stored in layers['x'].")
+    adata.layers["x"] = cast(Any, adata.X)
 
     # Set up tissue colors
     colors = [
@@ -193,31 +203,35 @@ if __name__ == "__main__":
 
     # Dynamic target genes bottleneck
     target_genes_df = pd.read_csv(args.target_genes, index_col=0)
-    target_gene_names = target_genes_df.columns.values
-    gene_mask = np.isin(adata.var["Symbol"].values, target_gene_names)
+    target_gene_names = target_genes_df.columns.to_numpy()
+    symbol_series = cast(pd.Series, adata.var["Symbol"])
+    gene_mask = np.isin(symbol_series.to_numpy(), target_gene_names)
     adata = adata[:, gene_mask].copy()
 
     # Sort columns exactly tracking the target subset order to align adjacency indices
     df_var = adata.var.copy()
     df_var["orig_idx"] = np.arange(len(df_var))
-    intersect_genes = [g for g in target_gene_names if g in df_var["Symbol"].values]
+    symbol_series = cast(pd.Series, df_var["Symbol"])
+    intersect_genes = [g for g in target_gene_names if g in symbol_series.to_numpy()]
     df_var = df_var.set_index("Symbol").loc[intersect_genes].reset_index()
-    adata = adata[:, df_var["orig_idx"].values].copy()
+    adata = adata[:, cast(pd.Series, df_var["orig_idx"]).to_numpy()].copy()
 
     # Confounders override mapping tracking identical metadata distributions if subset
     con_df = pd.read_csv(args.confounders, index_col=0)
-    subset_patients = adata.obs["Participant ID"].values
+    subset_patients = cast(pd.Series, adata.obs["Participant ID"]).to_numpy()
     valid_map = np.isin(subset_patients, con_df.index)
 
     # Adjacency Matrix
-    adjacency_matrix = load_adjacency_matrix(args.topology_matrix, adata.var["Symbol"].values)
+    adjacency_matrix = load_adjacency_matrix(
+        args.topology_matrix, cast(pd.Series, adata.var["Symbol"]).to_numpy()
+    )
 
     # Dictionaries
     _, tissue_dict = map_to_ids(adata.obs["Tissue"])
     tissue_dict_inv = {v: k for k, v in tissue_dict.items()}
 
     # Split train/val/test
-    donors = adata.obs["Participant ID"].values
+    donors = cast(pd.Series, adata.obs["Participant ID"]).to_numpy()
     train_donors = np.loadtxt("data/splits/gtex_train.txt", delimiter=",", dtype=str)
     val_donors = np.loadtxt("data/splits/gtex_val.txt", delimiter=",", dtype=str)
     test_donors = np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str)

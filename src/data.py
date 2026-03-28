@@ -68,7 +68,7 @@ class Data:
         """
 
         def increasing_index_map(values, features):
-            map = {}
+            map: dict[object, int] = {}
             out_indices = np.zeros_like(values, dtype=int)
             n_unique = len(np.unique(values))
             out_features = np.zeros((n_unique, features.shape[-1]))

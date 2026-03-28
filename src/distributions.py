@@ -324,7 +324,7 @@ class NegativeBinomial(Distribution):
             # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
             counts = Poisson(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
-            return counts
+            return cast(torch.Tensor, counts)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
@@ -337,11 +337,14 @@ class NegativeBinomial(Distribution):
                     stacklevel=2,
                 )
 
-        return log_nb_positive(
-            value,
-            mu=cast(torch.Tensor, self.mu),
-            theta=cast(torch.Tensor, self.theta),
-            eps=self._eps,
+        return cast(
+            torch.Tensor,
+            log_nb_positive(
+                value,
+                mu=cast(torch.Tensor, self.mu),
+                theta=cast(torch.Tensor, self.theta),
+                eps=self._eps,
+            ),
         )
 
     def _gamma(self):
@@ -426,7 +429,9 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     @property
     def zi_probs(self) -> torch.Tensor:
-        return logits_to_probs(cast(torch.Tensor, self.zi_logits), is_binary=True)
+        return cast(
+            torch.Tensor, logits_to_probs(cast(torch.Tensor, self.zi_logits), is_binary=True)
+        )
 
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         if sample_shape is None:
@@ -449,12 +454,15 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                     UserWarning,
                     stacklevel=2,
                 )
-        return log_zinb_positive(
-            value,
-            cast(torch.Tensor, self.mu),
-            cast(torch.Tensor, self.theta),
-            cast(torch.Tensor, self.zi_logits),
-            eps=1e-08,
+        return cast(
+            torch.Tensor,
+            log_zinb_positive(
+                value,
+                cast(torch.Tensor, self.mu),
+                cast(torch.Tensor, self.theta),
+                cast(torch.Tensor, self.zi_logits),
+                eps=1e-08,
+            ),
         )
 
 
@@ -524,7 +532,7 @@ class NegativeBinomialMixture(Distribution):
 
     @property
     def mixture_probs(self) -> torch.Tensor:
-        return logits_to_probs(self.mixture_logits, is_binary=True)
+        return cast(torch.Tensor, logits_to_probs(self.mixture_logits, is_binary=True))
 
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         if sample_shape is None:
@@ -546,7 +554,7 @@ class NegativeBinomialMixture(Distribution):
             # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
             counts = Poisson(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
-            return counts
+            return cast(torch.Tensor, counts)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         try:
@@ -557,12 +565,15 @@ class NegativeBinomialMixture(Distribution):
                 UserWarning,
                 stacklevel=2,
             )
-        return log_mixture_nb(
-            value,
-            self.mu1,
-            self.mu2,
-            self.theta1,
-            self.theta2,
-            self.mixture_logits,
-            eps=1e-08,
+        return cast(
+            torch.Tensor,
+            log_mixture_nb(
+                value,
+                self.mu1,
+                self.mu2,
+                self.theta1,
+                self.theta2,
+                self.mixture_logits,
+                eps=1e-08,
+            ),
         )
