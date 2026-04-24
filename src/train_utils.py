@@ -4,6 +4,7 @@ Train/eval loops
 
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 import torch
@@ -20,6 +21,15 @@ from src.losses import (
     get_reconstruction_loss,
     graph_laplacian_regularization,
 )
+
+INTERPRETABILITY_OUTPUT_KEYS = {
+    "gene_attribution_available",
+    "gene_attribution_reason",
+    "gene_metagene_attribution",
+    "gene_metagene_attribution_abs",
+    "prediction_uncertainty",
+    "prediction_trace",
+}
 
 
 def _get_decoder_gene_weights(
@@ -146,6 +156,31 @@ def _build_prediction_trace(
     return trace
 
 
+def _to_cpu_interpretability_payload(value: Any) -> Any:
+    if torch.is_tensor(value):
+        return value.detach().cpu()
+    if isinstance(value, dict):
+        return {k: _to_cpu_interpretability_payload(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return type(value)(_to_cpu_interpretability_payload(v) for v in value)
+    return value
+
+
+def _save_interpretability_batch(
+    out: dict[str, Any], output_dir: Path, batch_idx: int, prefix: str = "eval"
+) -> None:
+    payload = {
+        k: _to_cpu_interpretability_payload(out[k])
+        for k in sorted(INTERPRETABILITY_OUTPUT_KEYS)
+        if k in out
+    }
+    if not payload:
+        return
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(payload, output_dir / f"{prefix}_batch_{batch_idx:05d}.pt")
+
+
 def train(
     config: Any,
     model: torch.nn.Module,
@@ -169,6 +204,10 @@ def train(
 
     runtime_kwargs = {**kwargs}
     runtime_kwargs.pop("device", None)
+    interpretability_output_dir = runtime_kwargs.pop("interpretability_output_dir", None)
+    interpretability_output_dir = runtime_kwargs.pop(
+        "interpretability_dir", interpretability_output_dir
+    )
     laplacian_matrix = runtime_kwargs.get("laplacian_matrix")
     adjacency_matrix = runtime_kwargs.get("adjacency_matrix")
     if laplacian_matrix is None and adjacency_matrix is not None:
@@ -212,6 +251,7 @@ def train(
                     loader=val_loader,
                     beta=config.beta,
                     device=device,
+                    interpretability_output_dir=interpretability_output_dir,
                     **runtime_kwargs,
                 )
 
@@ -262,6 +302,9 @@ def train_step(
     total_samples = 0
     step_kwargs = {**kwargs}
     device = step_kwargs.pop("device", next(model.parameters()).device)
+    step_kwargs.pop("return_interpretability", None)
+    step_kwargs.pop("interpretability_output_dir", None)
+    step_kwargs.pop("interpretability_dir", None)
     scaler = GradScaler(enabled=device.type == "cuda")
     total_grad_norm = 0.0
     valid_batches = 0
@@ -323,13 +366,29 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> dict[str,
     total_samples = 0
     eval_kwargs = {**kwargs}
     device = eval_kwargs.pop("device", next(model.parameters()).device)
+    interpretability_output_dir = eval_kwargs.pop("interpretability_output_dir", None)
+    interpretability_output_dir = eval_kwargs.pop(
+        "interpretability_dir", interpretability_output_dir
+    )
+    eval_kwargs.pop("return_interpretability", None)
+    interpretability_path = (
+        Path(interpretability_output_dir) if interpretability_output_dir is not None else None
+    )
 
     with torch.no_grad():
-        for data in loader:
+        for batch_idx, data in enumerate(loader):
             if device is not None:
                 data = data.to(device)
 
-            out, node_features = forward(data, model, device=device, **eval_kwargs)
+            out, node_features = forward(
+                data,
+                model,
+                device=device,
+                return_interpretability=interpretability_path is not None,
+                **eval_kwargs,
+            )
+            if interpretability_path is not None:
+                _save_interpretability_batch(out, interpretability_path, batch_idx)
             losses = compute_loss(data, out, node_features, model=model, **eval_kwargs)
             metrics = compute_metrics(data, out, node_features, **eval_kwargs)
             losses_float = {k: v.item() for k, v in losses.items()}
