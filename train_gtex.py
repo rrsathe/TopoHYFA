@@ -184,6 +184,18 @@ if __name__ == "__main__":
         help="List of source tissue(s)",
     )
     parser.add_argument("--target-tissue", type=str, default="Heart_Atrial", help="Target tissue")
+    parser.add_argument(
+        "--interpretability",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Save validation interpretability outputs per batch",
+    )
+    parser.add_argument(
+        "--interpretability-output-dir",
+        type=str,
+        default="results/interpretability",
+        help="Directory for validation interpretability batch files",
+    )
     args, unknown = parser.parse_known_args()
 
     # Initialise wandb
@@ -306,6 +318,9 @@ if __name__ == "__main__":
         preprocess_fn=None,
         compute_metrics_train=False,
         metric_fns=metric_fns,
+        interpretability_output_dir=(
+            args.interpretability_output_dir if args.interpretability else None
+        ),
     )
 
     torch.save(model.state_dict(), "data/model.pth")

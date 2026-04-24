@@ -166,7 +166,7 @@ def _to_cpu_interpretability_payload(value: Any) -> Any:
     return value
 
 
-def _save_interpretability_batch(
+def save_interpretability_batch(
     out: dict[str, Any], output_dir: Path, batch_idx: int, prefix: str = "eval"
 ) -> None:
     payload = {
@@ -388,7 +388,7 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> dict[str,
                 **eval_kwargs,
             )
             if interpretability_path is not None:
-                _save_interpretability_batch(out, interpretability_path, batch_idx)
+                save_interpretability_batch(out, interpretability_path, batch_idx)
             losses = compute_loss(data, out, node_features, model=model, **eval_kwargs)
             metrics = compute_metrics(data, out, node_features, **eval_kwargs)
             losses_float = {k: v.item() for k, v in losses.items()}

@@ -5,6 +5,7 @@ Outputs per-gene Pearson/RMSE table, predictions CSV, and ground-truth CSV.
 
 import argparse
 import os
+from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from src.data import Data
-from src.train_utils import forward
+from src.train_utils import forward, save_interpretability_batch
 from train_gtex import (
     GTEx_v8_normalised_adata,
     HypergraphDataset,
@@ -29,6 +30,18 @@ RESULTS_DIR = "results"
 # ── CLI ──────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", default="configs/default.yaml", type=str)
+parser.add_argument(
+    "--interpretability",
+    action=argparse.BooleanOptionalAction,
+    default=False,
+    help="Save evaluation interpretability outputs",
+)
+parser.add_argument(
+    "--interpretability-output-dir",
+    default=f"{RESULTS_DIR}/interpretability",
+    type=str,
+    help="Directory for evaluation interpretability batch files",
+)
 args, unknown_args = parser.parse_known_args()
 
 wandb.init(project="multitissue_imputation", config=args.config, mode="disabled")
@@ -124,7 +137,15 @@ print(f"Evaluating: {source_tissues[0]} -> {target_tissues[0]}")
 
 with torch.no_grad():
     d = next(iter(aux_test_loader))
-    out, _node_features = forward(d, model, device, preprocess_fn=None)
+    out, _node_features = forward(
+        d,
+        model,
+        device,
+        preprocess_fn=None,
+        return_interpretability=args.interpretability,
+    )
+    if args.interpretability:
+        save_interpretability_batch(out, Path(args.interpretability_output_dir), 0)
     y_pred = out["px_rate"].cpu().numpy()
     y_true = d.x_target.cpu().numpy()
 
