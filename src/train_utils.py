@@ -45,6 +45,107 @@ def _get_decoder_gene_weights(
     return None
 
 
+def _get_linear_decoder_gene_weights(model: torch.nn.Module) -> torch.Tensor | None:
+    """
+    Return decoder weights only when genes are predicted directly from dense metagenes.
+    """
+    decoder = getattr(model, "metagenes_decoder", None)
+    if decoder is None or not hasattr(decoder, "px_rate_decoder"):
+        return None
+
+    rate_decoder = decoder.px_rate_decoder
+    if len(rate_decoder) != 1 or not isinstance(rate_decoder[0], torch.nn.Linear):
+        return None
+
+    return cast(torch.Tensor, rate_decoder[0].weight)
+
+
+def _compute_gene_attribution(
+    model: torch.nn.Module, dense_metagenes: torch.Tensor
+) -> dict[str, Any]:
+    """
+    Compute signed metagene-to-gene contributions for auditable linear decoders.
+
+    The returned tensor has shape (samples, genes, metagenes). Each value is the
+    signed contribution of one predicted metagene to one decoded gene value.
+    """
+    weights = _get_linear_decoder_gene_weights(model)
+    if weights is None:
+        return {
+            "gene_attribution_available": False,
+            "gene_attribution_reason": "decoder is not a direct linear px_rate decoder",
+        }
+
+    meta_g = int(model.meta_G)
+    d_edge_attr = int(model.config.d_edge_attr)
+    expected_in_dim = meta_g * d_edge_attr
+    if dense_metagenes.shape[-1] != expected_in_dim or weights.shape[1] != expected_in_dim:
+        return {
+            "gene_attribution_available": False,
+            "gene_attribution_reason": (
+                "metagene features and decoder weights have incompatible shapes"
+            ),
+        }
+
+    metagene_features = dense_metagenes.reshape(-1, meta_g, d_edge_attr)
+    gene_weights = weights.reshape(weights.shape[0], meta_g, d_edge_attr)
+    gene_metagene_attribution = torch.einsum(
+        "nmd,gmd->ngm", metagene_features, gene_weights
+    )
+
+    return {
+        "gene_attribution_available": True,
+        "gene_metagene_attribution": gene_metagene_attribution,
+        "gene_metagene_attribution_abs": gene_metagene_attribution.abs(),
+    }
+
+
+def _compute_prediction_uncertainty(out: dict[str, Any]) -> torch.Tensor | None:
+    """
+    Return a simple per-gene uncertainty proxy from decoder distribution parameters.
+    """
+    px_rate = out.get("px_rate")
+    if not torch.is_tensor(px_rate):
+        return None
+
+    likelihood = out.get("gene_likelihood")
+    if likelihood == "normal" and torch.is_tensor(out.get("px_r")):
+        return cast(torch.Tensor, out["px_r"])
+    if likelihood == "poisson":
+        return torch.sqrt(torch.clamp(px_rate, min=0.0))
+    if likelihood in {"nb", "zinb"} and torch.is_tensor(out.get("px_r")):
+        px_r = cast(torch.Tensor, out["px_r"])
+        variance = px_rate + px_rate.pow(2) / torch.clamp(px_r, min=1e-8)
+        return torch.sqrt(torch.clamp(variance, min=0.0))
+    return None
+
+
+def _build_prediction_trace(
+    data: Any,
+    target_hyperedge_index: dict[str, torch.Tensor],
+    dense_metagenes: torch.Tensor,
+    out: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Collect tensor-level prediction provenance without assuming external labels.
+    """
+    trace: dict[str, Any] = {
+        "source_node_indices": {
+            k: v.detach().cpu() for k, v in getattr(data, "source", {}).items()
+        },
+        "target_node_indices": {
+            k: v.detach().cpu() for k, v in getattr(data, "target", {}).items()
+        },
+        "target_hyperedge_index": {
+            k: v.detach().cpu() for k, v in target_hyperedge_index.items()
+        },
+        "dense_metagene_shape": tuple(dense_metagenes.shape),
+    }
+    if torch.is_tensor(out.get("px_rate")):
+        trace["prediction_shape"] = tuple(cast(torch.Tensor, out["px_rate"]).shape)
+    return trace
+
+
 def train(
     config: Any,
     model: torch.nn.Module,
@@ -292,6 +393,7 @@ def decode(
     use_observed_library: bool = True,
     n_cells: torch.Tensor | None = None,
     library: torch.Tensor | None = None,
+    return_interpretability: bool = False,
     **kwargs,
 ) -> dict[str, Any]:
     """
@@ -337,6 +439,15 @@ def decode(
         x_pred_metagenes, log_library=log_library, n_cells=n_cells, **kwargs
     )
 
+    if return_interpretability:
+        out.update(_compute_gene_attribution(model, x_pred_metagenes))
+        uncertainty = _compute_prediction_uncertainty(out)
+        if uncertainty is not None:
+            out["prediction_uncertainty"] = uncertainty
+        out["prediction_trace"] = _build_prediction_trace(
+            data, target_hyperedge_index, x_pred_metagenes, out
+        )
+
     return cast(dict[str, Any], out)
 
 
@@ -347,6 +458,7 @@ def forward(
     preprocess_fn: Callable | None = None,
     use_observed_library: bool = True,
     use_latent_means: bool = False,
+    return_interpretability: bool = False,
     **kwargs,
 ) -> tuple[dict[str, Any], tuple[dict[str, Any], dict[str, Any]]]:
     """
@@ -371,7 +483,14 @@ def forward(
         node_features = (dynamic_node_features, static_node_features)
 
     # Decode
-    out = decode(data, model, node_features, use_observed_library=use_observed_library, **kwargs)
+    out = decode(
+        data,
+        model,
+        node_features,
+        use_observed_library=use_observed_library,
+        return_interpretability=return_interpretability,
+        **kwargs,
+    )
 
     return out, node_features
 
