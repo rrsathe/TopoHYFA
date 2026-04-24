@@ -20,7 +20,7 @@ from src.hnn import HypergraphNeuralNet
 from src.train_utils import train
 
 np.random.seed(0)
-num_workers = 4
+DEFAULT_NUM_WORKERS = 4
 
 GTEX_FILE = "data/GTEX_data.csv"
 METADATA_FILE = "data/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
@@ -196,6 +196,12 @@ if __name__ == "__main__":
         default="results/interpretability",
         help="Directory for validation interpretability batch files",
     )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=DEFAULT_NUM_WORKERS,
+        help="Number of DataLoader worker processes",
+    )
     args, unknown = parser.parse_known_args()
 
     # Initialise wandb
@@ -273,14 +279,14 @@ if __name__ == "__main__":
         batch_size=config.batch_size,
         collate_fn=collate_fn,
         shuffle=True,
-        num_workers=num_workers,
+        num_workers=args.num_workers,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
         collate_fn=collate_fn,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=args.num_workers,
     )
     # test_loader = DataLoader(test_dataset, batch_size=config.batch_size, collate_fn=collate_fn, shuffle=False, num_workers=num_workers)
 
