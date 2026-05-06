@@ -44,7 +44,8 @@ TopoHYFA/
 ├── visualize_interpretability.py
 ├── prep_handoff.py
 ├── pipeline.py
-├── requirements.txt
+├── pyproject.toml
+├── uv.lock
 ├── src/
 ├── data/
 ├── results/
@@ -66,23 +67,25 @@ CPU execution works but training is slower.
 
 ## Installation
 
-Clone the repository:
+This repository uses [`uv`](https://github.com/astral-sh/uv) for reproducible dependency management.
+
+### Install uv
+
+```bash
+pip install uv
+```
+
+### Clone the repository
 
 ```bash
 git clone https://github.com/rrsathe/TopoHYFA.git
 cd TopoHYFA
 ```
 
-Install dependencies:
+### Create the environment
 
 ```bash
-pip install -r requirements.txt
-```
-
-(Optional)
-
-```bash
-uv pip install -r requirements.txt
+uv sync
 ```
 
 ---
@@ -134,7 +137,7 @@ data/
 Run:
 
 ```bash
-python prep_handoff.py
+uv run python prep_handoff.py
 ```
 
 This creates:
@@ -153,7 +156,7 @@ Imputation/output/HYFA_export/
 Run the complete student-facing pipeline:
 
 ```bash
-python pipeline.py --lambda-reg 0.1
+uv run python pipeline.py --lambda-reg 0.1
 ```
 
 This automatically:
@@ -171,7 +174,7 @@ This automatically:
 Skip training and reuse `data/model.pth`:
 
 ```bash
-python pipeline.py --skip-train
+uv run python pipeline.py --skip-train
 ```
 
 ---
@@ -212,10 +215,10 @@ Depends on:
 
 ```bash
 # Step 1
-python prep_handoff.py
+uv run python prep_handoff.py
 
 # Step 2
-python pipeline.py --lambda-reg 0.1
+uv run python pipeline.py --lambda-reg 0.1
 ```
 
 ---
@@ -236,13 +239,13 @@ python pipeline.py --lambda-reg 0.1
 
 ## Results Summary
 
-| Model               | Avg Pearson r                   |
-| ------------------- | ------------------------------- |
-| TEEBoT              | 0.369                           |
-| Global HYFA         | 0.424                           |
-| Topology-Aware HYFA | Targeted biomarker improvements |
+| Model | Avg Pearson r | Notes |
+|---|---|---|
+| TEEBoT | 0.369 | PCA + LASSO baseline |
+| Global HYFA | 0.424 | Best global average |
+| Topology-Aware HYFA | 0.310 | Improved targeted biomarkers |
 
-Key improvement observed on:
+Key improvements observed on:
 
 * CYP2J2
 * biologically co-expressed cardiovascular markers
