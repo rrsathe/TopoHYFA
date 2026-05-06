@@ -16,8 +16,6 @@ authors = [
     { name = "HYFA Team" }
 ]
 
-license = { text = "MIT" }
-
 dependencies = [
     # Core ML
     "torch==2.3.0",
