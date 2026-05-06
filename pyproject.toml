@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hyfa"
+name = "topohyfa"
 version = "0.1.0"
 description = "Hypergraph Factorization for multi-tissue gene expression imputation"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10,<3.12"
 authors = [{ name = "HYFA Team" }]
-license = "MIT"
+license = { text = "MIT" }
 dependencies = [
     "torch==2.3.0",
     "torch-scatter",
@@ -19,18 +19,17 @@ dependencies = [
     "bioservices",
     "gseapy",
     "h5py",
-    "matplotlib",
+    "matplotlib==3.9.0",
     "missingpy",
     "nbformat",
     "networkx",
-    "numpy",
-    "pandas",
+    "numpy==1.26.4",
+    "pandas==2.2.2",
     "pyyaml",
-    "scanpy",
-    "scikit-learn",
+    "scanpy==1.10.1",
+    "scikit-learn==1.5.0",
     "scikit-misc",
-    "scipy",
-    "seaborn",
+    "scipy==1.13.1",
     "statsmodels",
     "supervenn",
     "tqdm",
@@ -84,7 +83,7 @@ explicit = true
 # ---------------------------------------------------------
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "UP", "C4", "SIM"]
@@ -110,7 +109,7 @@ exclude = ["**/*.ipynb"]
 # Type Checking (Mypy)
 # ---------------------------------------------------------
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.10"
 check_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true

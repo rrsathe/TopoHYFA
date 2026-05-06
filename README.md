@@ -87,6 +87,26 @@ uv pip install -r requirements.txt
 
 ---
 
+## Reproducibility
+
+This repository targets reproducible, evaluator-friendly execution:
+
+- Uses `uv` for deterministic dependency management and `uv.lock` for exact resolutions.
+- Targets CPU-compatible PyTorch wheels for portable execution; GPU is optional if you install CUDA-compatible PyTorch separately.
+
+Reproduce the environment:
+
+```bash
+pip install uv
+uv sync
+```
+
+Run the full pipeline:
+
+```bash
+uv run python pipeline.py --lambda-reg 0.1
+```
+
 ## Data Preparation
 
 This project uses GTEx v8 data.
