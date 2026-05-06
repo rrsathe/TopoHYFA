@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=61.0.0"]
+requires = [
+    "setuptools>=61.0.0",
+    "wheel",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,35 +11,50 @@ version = "0.1.0"
 description = "Hypergraph Factorization for multi-tissue gene expression imputation"
 readme = "README.md"
 requires-python = ">=3.10,<3.12"
-authors = [{ name = "HYFA Team" }]
+
+authors = [
+    { name = "HYFA Team" }
+]
+
 license = { text = "MIT" }
+
 dependencies = [
+    # Core ML
     "torch==2.3.0",
-    "torch-scatter",
-    "torch-sparse",
-    "anndata",
+
+    # PyTorch Geometric ecosystem
+    "torch-scatter==2.1.2",
+    "torch-sparse==0.6.18",
+
+    # Scientific computing
+    "numpy==1.26.4",
+    "scipy==1.13.1",
+    "pandas==2.2.2",
+    "scikit-learn==1.5.0",
+    "statsmodels",
+
+    # Single-cell / bioinformatics
+    "anndata==0.11.4",
+    "scanpy==1.10.1",
     "biopython",
     "bioservices",
     "gseapy",
-    "h5py",
+    "blitzgsea",
+
+    # Visualization
     "matplotlib==3.9.0",
+    "supervenn",
+    "umap-learn==0.5.7",
+
+    # Utilities
+    "h5py",
     "missingpy",
     "nbformat",
-    "networkx",
-    "numpy==1.26.4",
-    "pandas==2.2.2",
+    "networkx==3.4.2",
     "pyyaml",
-    "scanpy==1.10.1",
-    "scikit-learn==1.5.0",
     "scikit-misc",
-    "scipy==1.13.1",
-    "statsmodels",
-    "supervenn",
     "tqdm",
-    "types-networkx",
-    "umap-learn",
     "wandb",
-    "blitzgsea",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +63,9 @@ dev = [
     "ruff",
     "mypy",
     "pre-commit",
+
+    # Typing stubs
+    "types-networkx",
     "types-PyYAML",
     "pandas-stubs",
     "types-seaborn",
@@ -54,60 +75,82 @@ dev = [
 ]
 
 [project.scripts]
-# Adjust the entry point depending on your actual module structure
 train-hyfa = "train_gtex:main"
 
+# ---------------------------------------------------------
+# setuptools configuration
+# ---------------------------------------------------------
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
-include = ["src*"]
+where = ["src"]
 
 # ---------------------------------------------------------
-# uv-specific configurations
+# uv configuration
 # ---------------------------------------------------------
+
 [tool.uv]
-# PyG doesn't use a standard PEP 503 index, so we still need find-links for torch-scatter/sparse
-find-links = ["https://data.pyg.org/whl/torch-2.3.0+cpu.html"]
+find-links = [
+    "https://data.pyg.org/whl/torch-2.3.0+cpu.html"
+]
 
 [tool.uv.sources]
 blitzgsea = { git = "https://github.com/MaayanLab/blitzgsea.git" }
-# Tell uv explicitly to fetch PyTorch from the custom index below
-torch = [{ index = "pytorch-cpu" }]
+
+torch = [
+    { index = "pytorch-cpu" }
+]
 
 [[tool.uv.index]]
-# The official PyTorch CPU index (PEP 503 compliant)
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 # ---------------------------------------------------------
-# Linting & Formatting (Ruff)
+# Ruff
 # ---------------------------------------------------------
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "C4", "SIM"]
+select = [
+    "E",
+    "F",
+    "B",
+    "I",
+    "UP",
+    "C4",
+    "SIM",
+]
+
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
 
 # ---------------------------------------------------------
-# Testing (Pytest)
+# Pytest
 # ---------------------------------------------------------
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
 
 # ---------------------------------------------------------
-# Type Checking (ty)
+# ty
 # ---------------------------------------------------------
+
 [tool.ty.src]
 exclude = ["**/*.ipynb"]
 
 # ---------------------------------------------------------
-# Type Checking (Mypy)
+# mypy
 # ---------------------------------------------------------
+
 [tool.mypy]
 python_version = "3.10"
 check_untyped_defs = true
@@ -115,7 +158,6 @@ warn_return_any = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-# Ignore missing imports for heavy scientific/ML libraries without stubs
 module = [
     "anndata.*",
     "scanpy.*",
