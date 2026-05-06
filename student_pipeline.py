@@ -16,6 +16,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import pandas as pd
+import numpy as np
 
 
 def run(cmd: list[str], env: dict[str, str]) -> None:
@@ -29,6 +31,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lambda-reg", type=float, default=0.0)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--target-genes", default="Imputation/output/HYFA_export/target_genes_15.csv")
+    parser.add_argument(
+        "--genes", nargs="+", help="List of gene symbols to evaluate (overrides --target-genes)",
+    )
     parser.add_argument("--topology-matrix", default="Imputation/output/HYFA_export/adjacency_matrix.csv")
     parser.add_argument("--confounders", default="Imputation/output/HYFA_export/confounders.csv")
     parser.add_argument("--interpretability-dir", default="results/interpretability")
@@ -40,6 +45,37 @@ def main() -> None:
     args = parse_args()
     env = {**os.environ, "WANDB_MODE": "disabled", "MPLCONFIGDIR": "/tmp/matplotlib"}
     py = sys.executable
+
+    # If user provided gene symbols directly, create a small CSV matching
+    # the project's expected `target_genes` format (one row, gene symbols as columns).
+    if getattr(args, "genes", None):
+        # Validate genes against adjacency matrix columns
+        try:
+            adj_cols = pd.read_csv(args.topology_matrix, index_col=0, nrows=0).columns.to_list()
+        except Exception as e:
+            raise FileNotFoundError(f"Could not read adjacency matrix {args.topology_matrix}: {e}")
+        
+        # Filter to only genes present in adjacency matrix
+        valid_genes = [g for g in args.genes if g in adj_cols]
+        missing_genes = [g for g in args.genes if g not in adj_cols]
+        
+        if not valid_genes:
+            raise ValueError(
+                f"None of the requested genes {args.genes} found in adjacency matrix. "
+                f"Available genes: {adj_cols}"
+            )
+        
+        if missing_genes:
+            print(f"⚠️  Skipping genes not in adjacency matrix: {missing_genes}")
+        
+        print(f"✓ Using genes from adjacency matrix: {valid_genes}")
+        
+        cli_path = Path("Imputation/output/HYFA_export/target_genes_cli.csv")
+        cli_path.parent.mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame([np.zeros(len(valid_genes))], columns=valid_genes)
+        df.to_csv(cli_path, index=True)
+        args.target_genes = str(cli_path)
+        print(f"Wrote {len(valid_genes)} valid genes to {args.target_genes}")
 
     for required in [args.target_genes, args.topology_matrix, args.confounders]:
         if not Path(required).exists():

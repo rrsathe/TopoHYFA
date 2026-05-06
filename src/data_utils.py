@@ -16,10 +16,24 @@ def load_adjacency_matrix(filepath, gene_order):
     Reads adjacency_matrix.csv and aligns it.
     """
     df = pd.read_csv(filepath, index_col=0)
-    # align it to the order of the Ensembl IDs provided
+    # align it to the order of the provided gene names
     df = df.reindex(index=gene_order, columns=gene_order).fillna(0)
     df = (df + df.T) / 2
-    df = df / (df.to_numpy().max() + 1e-8)
+
+    # Defensive checks: if the reindexed dataframe is empty, provide a helpful error
+    if df.size == 0:
+        missing = list(gene_order)
+        raise ValueError(
+            f"Adjacency matrix reindex produced an empty DataFrame.\n"
+            f"Requested genes (len={len(missing)}): {missing}\n"
+            f"Adjacency file: {filepath} contains columns: {list(pd.read_csv(filepath, nrows=0).columns)}"
+        )
+
+    arr = df.to_numpy()
+    max_val = arr.max() if arr.size > 0 else 0.0
+    # avoid division by zero
+    norm = max_val + 1e-8
+    df = df / norm
     return torch.tensor(df.values, dtype=torch.float32)
 
 
