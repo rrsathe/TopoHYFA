@@ -43,7 +43,7 @@ TopoHYFA/
 ├── run_disease_prediction.py
 ├── visualize_interpretability.py
 ├── prep_handoff.py
-├── pipeline.py
+├── student_pipeline.py
 ├── pyproject.toml
 ├── uv.lock
 ├── src/
@@ -107,7 +107,7 @@ uv sync
 Run the full pipeline:
 
 ```bash
-uv run python pipeline.py --lambda-reg 0.1
+uv run python student_pipeline.py --lambda-reg 0.1
 ```
 
 ## Data Preparation
@@ -156,7 +156,7 @@ Imputation/output/HYFA_export/
 Run the complete student-facing pipeline:
 
 ```bash
-uv run python pipeline.py --lambda-reg 0.1
+uv run python student_pipeline.py --lambda-reg 0.1
 ```
 
 This automatically:
@@ -174,7 +174,7 @@ This automatically:
 Skip training and reuse `data/model.pth`:
 
 ```bash
-uv run python pipeline.py --skip-train
+uv run python student_pipeline.py --skip-train
 ```
 
 ---
@@ -218,7 +218,7 @@ Depends on:
 uv run python prep_handoff.py
 
 # Step 2
-uv run python pipeline.py --lambda-reg 0.1
+uv run python student_pipeline.py --lambda-reg 0.1
 ```
 
 ---
