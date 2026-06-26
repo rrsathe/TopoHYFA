@@ -4,7 +4,6 @@ import pandas as pd
 
 
 def main():
-    # Target Genes
     target_genes = [
         "CHDH",
         "SREBF1",
@@ -36,7 +35,6 @@ def main():
 
     print(f"Expression data shape: {df_expr.shape}")
 
-    # Filter for 'Heart - Left Ventricle' or similar
     all_tissues = df_expr["tissue"].unique()
     target_tissue = None
     for t in all_tissues:
@@ -54,17 +52,14 @@ def main():
     mask_heart = df_expr["tissue"] == target_tissue
     df_heart = df_expr[mask_heart].copy()
 
-    # Extract subjects
-    # GTEx sample ID in index, e.g., GTEX-XXXXX-YYYY-SM-ZZZZ
     df_heart["SUBJID"] = ["-".join(idx.split("-")[:2]) for idx in df_heart.index]
 
-    # Extract features for target genes
     col_map = {str(c).upper(): c for c in df_heart.columns}
 
     for g in target_genes:
         if g.upper() in col_map:
             col_name = col_map[g.upper()]
-            # ensure it's named exactly as in target_genes for the export
+
             df_heart[g] = df_heart[col_name]
         else:
             print(f"Warning: Gene {g} not found. Filling with zeros.")
@@ -72,21 +67,17 @@ def main():
 
     df_heart_targets = df_heart[target_genes].astype(float)
 
-    # Compute 15x15 Pearson correlation
     corr_matrix = df_heart_targets.corr(method="pearson")
-    # Fill NaNs with 0 (which happens for columns with all zeros)
+
     corr_matrix = corr_matrix.fillna(0)
-    # Set negative correlations to 0
+
     corr_matrix[corr_matrix < 0] = 0
 
-    # Save target expressions and adj matrix
     df_heart_targets.to_csv(os.path.join(out_dir, "target_genes_15.csv"), index=False)
     corr_matrix.to_csv(os.path.join(out_dir, "adjacency_matrix.csv"), index=True)
 
-    # Construct confounders
     df_conf = pd.merge(df_heart[["SUBJID"]], df_pheno, on="SUBJID", how="inner")
 
-    # Keep Age and Sex if present
     cols_to_keep = ["SUBJID"]
     if "AGE" in df_conf.columns:
         cols_to_keep.append("AGE")

@@ -14,10 +14,6 @@ import pytest
 
 from src.baselines import PCA_linear_regression_baseline, impute_knn, impute_simple
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
 
 @pytest.fixture()
 def regression_data():
@@ -39,11 +35,6 @@ def covariate_data(regression_data):
     cov_train = rng.random((len(x_source), 3)).astype(np.float32)
     cov_test = rng.random((n_test, 3)).astype(np.float32)
     return x_source, x_target, x_source_test, cov_train, cov_test
-
-
-# ---------------------------------------------------------------------------
-# PCA_linear_regression_baseline
-# ---------------------------------------------------------------------------
 
 
 class TestPCALinearRegressionBaseline:
@@ -79,18 +70,13 @@ class TestPCALinearRegressionBaseline:
         assert pred.shape == (n_test, n_target_genes)
 
 
-# ---------------------------------------------------------------------------
-# impute_knn
-# ---------------------------------------------------------------------------
-
-
 class TestImputeKnn:
     @pytest.fixture()
     def knn_data(self):
         rng = np.random.default_rng(2)
         N, G = 12, 8
         n_cov = 2
-        # Introduce some NaNs to simulate missing observations
+
         y = rng.random((N, G)).astype(np.float32)
         covariates = rng.random((N, n_cov)).astype(np.float32)
         return y, covariates
@@ -106,18 +92,13 @@ class TestImputeKnn:
         assert not np.isnan(y_imp).any()
 
 
-# ---------------------------------------------------------------------------
-# impute_simple
-# ---------------------------------------------------------------------------
-
-
 class TestImputeSimple:
     @pytest.fixture()
     def simple_data(self):
         rng = np.random.default_rng(3)
         N, T, G = 10, 4, 6
         y = rng.random((N, T, G)).astype(np.float64)
-        # Introduce NaNs to simulate missingness
+
         y[0, 1, :] = np.nan
         y[2, 3, :] = np.nan
         covariates = rng.random((N, 2)).astype(np.float64)

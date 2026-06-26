@@ -10,7 +10,7 @@ except Exception as e:
     print(f"Error reading notebook: {e}")
     sys.exit(1)
 
-# We want to add the filtering code right after `adata = GTEx_v8_normalised_adata(file=GTEX_FILE)`
+
 filter_code_to_add = """
 import pandas as pd
 import numpy as np
@@ -40,7 +40,6 @@ for cell in nb.cells:
             "test_mask = np.isin(donors, test_donors)" in cell.source
             and "gtex_test.txt" not in cell.source
         ):
-            # Fix split logic
             cell.source = cell.source.replace(
                 "train_donors, test_donors = split_patient_train_test(donors, train_rate=0.8)\\n    train_donors, val_donors = split_patient_train_test(train_donors, train_rate=0.75)",
                 "test_donors = np.loadtxt('data/splits/gtex_test.txt', delimiter=',', dtype=str)",

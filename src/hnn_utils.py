@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch_scatter
 
 
-# Networks
 def MLP(
     in_dim,
     out_dim,
@@ -59,7 +58,6 @@ def MLP(
     return mlp
 
 
-# Aggregation
 def message_aggregation(messages, idxs, dim_size, aggregators=None):
     """
     Aggregates messages by node using the torch_scatter package. Thankfully,
@@ -110,10 +108,9 @@ def masked_softmax(A, mask):
     :param mask: binary tensor of shape=(n,)
     :return: tensor of shape=(n, feature_dim) after applying masked softmax
     """
-    # matrix A is the one you want to do mask softmax at dim=1
     A_max = torch.max(A, dim=1, keepdim=True)[0]
     A_exp = torch.exp(A - A_max)
-    A_exp = A_exp * mask.float()  # this step masks
+    A_exp = A_exp * mask.float()
     A_softmax = A_exp / torch.sum(A_exp, dim=1, keepdim=True)
     return A_softmax
 
@@ -155,13 +152,11 @@ def meshgrid_2d(a, b):
     :param b: 2d tensors of shape (n_genes, n_features)
     :return: tensor of shape (n_genes, n_genes, 2*n_features)
     """
-    # Similar to torch.meshgrid, but a and b are 2d tensors of shape (n_genes, n_features)
     a_ = torch.tile(a[:, None, :], (1, b.shape[0], 1))
     b_ = torch.tile(b[None, :, :], (a.shape[0], 1, 1))
     return torch.cat((a_, b_), dim=-1)
 
 
-# Utilities
 def expand_features(features_per_node, index):
     """
     Expands the features per node back to the coordinate space. Inverse of "collapse_features"

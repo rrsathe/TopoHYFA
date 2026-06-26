@@ -43,11 +43,9 @@ def load_config(config_path):
     with open(config_path) as f:
         raw = yaml.safe_load(f)
 
-    # If it's a Sweep config, values are nested under 'parameters'
     if "parameters" in raw:
         raw = raw["parameters"]
 
-    # Unwrap W&B format: {"key": {"desc": "...", "value": 120}} -> {"key": 120}
     parsed = {}
     for k, v in raw.items():
         if isinstance(v, dict) and "value" in v:
@@ -61,15 +59,12 @@ def load_config(config_path):
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 1. Load the original config and data (NO BOTTLENECK)
     log.info("Loading FULL GTEx V8 AnnData object for Original Model...")
     config: Any = load_config("configs/default.yaml")
     adata = GTEx_v8_normalised_adata()
 
-    # Override config to match pre-trained checkpoint dimensions
     config.meta_G = 50
 
-    # Ensure config matches the original massive dimensions
     config.G = adata.shape[-1]
     config.static_node_types = {
         "Tissue": (len(adata.obs["Tissue_idx"].unique()), getattr(config, "d_tissue", 120)),
@@ -82,7 +77,6 @@ def main():
         )
     }
 
-    # 2. Find the column indices of our 15 target genes in the massive 25k array
     target_genes_df = pd.read_csv("Imputation/output/HYFA_export/target_genes_15.csv", index_col=0)
     target_gene_names = target_genes_df.columns.values
 
@@ -94,15 +88,12 @@ def main():
             gene_indices.append(idx)
             found_genes.append(gene)
 
-    # Convert to numpy array for indexing
     gene_indices_np = np.array(gene_indices)
 
-    # 3. Setup Test Set (Whole Blood -> Heart)
     donors = adata.obs["Participant ID"].to_numpy(dtype=str)
     test_donors = np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str)
     test_mask = np.isin(donors, test_donors)
 
-    # Note: Using the exact tissue names as natively found in GTEx
     test_dataset = HypergraphDataset(
         adata[test_mask],
         dtype=torch.float32,
@@ -116,7 +107,6 @@ def main():
         test_dataset, batch_size=64, collate_fn=Data.from_datalist, shuffle=False
     )
 
-    # 4. Initialize and Load Original Pre-trained Model
     log.info("Loading original weights from data/normalised_model_default.pth...")
     model = HypergraphNeuralNet(config).to(device)
     model.load_state_dict(torch.load("data/normalised_model_default.pth", map_location=device))
@@ -130,40 +120,32 @@ def main():
         for batch in test_loader:
             batch = batch.to(device)
 
-            # Encode source tissue expression to metagene space
             x_source_metagenes = model.encode_metagenes(batch.x_source)
 
-            # Unpack batch into model inputs
             hyperedge_index, hyperedge_attr = sparsify(
                 batch.source, model.metagenes, x=x_source_metagenes
             )
-            # Move all tensors to device
+
             hyperedge_index = {k: v.to(device) for k, v in hyperedge_index.items()}
             if hyperedge_attr is not None:
                 hyperedge_attr = hyperedge_attr.to(device)
 
-            # Encode: compute node features from source tissue
             node_features = model(
                 hyperedge_index, hyperedge_attr, dynamic_node_features=batch.node_features
             )
 
-            # Prepare target hyperedges for prediction
             target_hyperedge_index, _ = sparsify(batch.target, model.metagenes, x=None)
             target_hyperedge_index = {k: v.to(device) for k, v in target_hyperedge_index.items()}
 
-            # Predict: get metagene values for target tissue
             x_pred_metagenes = model.predict(target_hyperedge_index, node_features)
 
-            # Densify predictions back to metagene representation
             x_pred_metagenes_dense = densify(
                 batch.target, model.metagenes, target_hyperedge_index, x_pred_metagenes
             )
 
-            # Decode metagenes back to full gene space
             out = model.decode_metagenes(x_pred_metagenes_dense)
             x_pred_genes = out["px_rate"]
 
-            # Extract predictions and targets for 15 genes
             pred = x_pred_genes.cpu().numpy()[:, gene_indices_np]
             target = batch.x_target.cpu().numpy()[:, gene_indices_np]
 
@@ -179,7 +161,6 @@ def main():
         log.error("No samples were found in the test set. Check tissue filtering parameters.")
         return
 
-    # 5. Calculate Pearson Correlation
     correlations: list[float] = []
     for i in range(len(found_genes)):
         if np.std(all_targets_arr[:, i]) > 0 and np.std(all_preds_arr[:, i]) > 0:
@@ -189,7 +170,6 @@ def main():
             corr = 0.0
         correlations.append(corr)
 
-    # 6. Print Results
     table = Table(title="Global HYFA (25k Genes) vs. The 15 Target Markers")
     table.add_column("Gene Symbol", justify="left", style="cyan")
     table.add_column("Original HYFA (r)", justify="right", style="magenta")

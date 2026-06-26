@@ -42,11 +42,11 @@ def log_zinb_positive(
     -----
     We parametrize the bernoulli using the logits, hence the softplus functions appearing.
     """
-    # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
-    if theta.ndimension() == 1:
-        theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-    softplus_pi = F.softplus(-pi)  # uses log(sigmoid(x)) = -softplus(-x)
+    if theta.ndimension() == 1:
+        theta = theta.view(1, theta.size(0))
+
+    softplus_pi = F.softplus(-pi)
     log_theta_eps = torch.log(theta + eps)
     log_theta_mu_eps = torch.log(theta + mu + eps)
     pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
@@ -141,11 +141,11 @@ def log_mixture_nb(
     if theta_2 is not None:
         log_nb_1 = log_nb_positive(x, mu_1, theta_1)
         log_nb_2 = log_nb_positive(x, mu_2, theta_2)
-    # this is intended to reduce repeated computations
+
     else:
         theta = theta_1
         if theta.ndimension() == 1:
-            theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
+            theta = theta.view(1, theta.size(0))
 
         log_theta_mu_1_eps = torch.log(theta + mu_1 + eps)
         log_theta_mu_2_eps = torch.log(theta + mu_2 + eps)
@@ -229,7 +229,7 @@ def _convert_counts_logits_to_mean_disp(total_count, logits):
 def _gamma(theta, mu):
     concentration = theta
     rate = theta / mu
-    # Important remark: Gamma is parametrized by the rate = 1/scale!
+
     gamma_d = Gamma(concentration=concentration, rate=rate)
     return gamma_d
 
@@ -320,10 +320,8 @@ class NegativeBinomial(Distribution):
             gamma_d = self._gamma()
             p_means = gamma_d.sample(sample_shape)
 
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+            counts = Poisson(l_train).sample()
             return cast(torch.Tensor, counts)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
@@ -548,10 +546,8 @@ class NegativeBinomialMixture(Distribution):
             gamma_d = _gamma(theta, mu)
             p_means = gamma_d.sample(sample_shape)
 
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
+            counts = Poisson(l_train).sample()
             return cast(torch.Tensor, counts)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:

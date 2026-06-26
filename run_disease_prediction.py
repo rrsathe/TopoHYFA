@@ -37,7 +37,6 @@ def run_disease_cv(X, y, n_folds=5, n_ensemble=10):
             X_train, X_test = X[train_idx], X[test_idx]
             y_train, y_test = y[train_idx], y[test_idx]
 
-            # Skip folds with only one class
             if len(np.unique(y_train)) < 2 or len(np.unique(y_test)) < 2:
                 continue
 
@@ -64,23 +63,18 @@ def main():
     parser.add_argument("--n-ensemble", type=int, default=10)
     args = parser.parse_args()
 
-    # ── Load data ────────────────────────────────────────────────────
     print("Loading predictions and metadata ...")
     pred_df = pd.read_csv(f"{RESULTS_DIR}/hyfa_predictions_test.csv", index_col=0)
     truth_df = pd.read_csv(f"{RESULTS_DIR}/ground_truth_test.csv", index_col=0)
 
-    # Load arrays for blood-surrogate expression
     data = np.load(f"{RESULTS_DIR}/eval_arrays.npz", allow_pickle=True)
-    x_test_source = data["x_test_source"]  # blood expression
+    x_test_source = data["x_test_source"]
     gene_symbols = data["gene_symbols"]
 
-    # Build blood surrogate DF with same index as pred_df
     blood_df = pd.DataFrame(x_test_source, columns=gene_symbols, index=pred_df.index)
 
-    # Load phenotype metadata
     pheno = pd.read_csv(METADATA_FILE, delimiter="\t").set_index("SUBJID")
 
-    # ── Build labels ─────────────────────────────────────────────────
     common_ids = pred_df.index[pred_df.index.isin(pheno.index)]
 
     if len(common_ids) == 0:
@@ -97,16 +91,12 @@ def main():
 
     raw_labels = pheno.loc[common_ids, args.phenotype].values
 
-    # Encode labels as binary
     if args.phenotype == "SEX":
-        # GTEx: 1=Male, 2=Female -> 0=Male, 1=Female
         raw_numeric = pd.to_numeric(pd.Series(raw_labels), errors="coerce").to_numpy(dtype=float)
         valid = (~np.isnan(raw_numeric)) & ((raw_numeric == 1.0) | (raw_numeric == 2.0))
         labels = np.zeros(raw_numeric.shape[0], dtype=int)
         labels[valid] = (raw_numeric[valid] - 1.0).astype(int)
     elif args.phenotype == "DTHHRDY":
-        # Hardy scale: 0=Ventilator, 1=Violent/fast, 2=Fast natural, 3=Intermediate, 4=Slow
-        # Binarize: 0 (ventilator) vs 1-4 (non-ventilator)
         raw_numeric = pd.to_numeric(pd.Series(raw_labels), errors="coerce").to_numpy(dtype=float)
         labels = (raw_numeric > 0).astype(int)
         valid = ~np.isnan(raw_numeric)
@@ -130,7 +120,6 @@ def main():
     X_truth = truth_df.loc[common_ids].values
     X_blood = blood_df.loc[common_ids].values
 
-    # ── Run disease prediction ───────────────────────────────────────
     print(f"\nRunning {args.n_folds}-fold CV x {args.n_ensemble} ensembles ...")
 
     auc_hyfa = run_disease_cv(X_hyfa, labels, args.n_folds, args.n_ensemble)
@@ -142,7 +131,6 @@ def main():
     auc_blood = run_disease_cv(X_blood, labels, args.n_folds, args.n_ensemble)
     print(f"  Blood surrogate AUC: {auc_blood:.4f}")
 
-    # ── Save results ─────────────────────────────────────────────────
     results = pd.DataFrame(
         {
             "Method": ["HYFA (imputed)", "Ground truth (Heart)", "Blood surrogate"],

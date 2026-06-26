@@ -26,7 +26,6 @@ def graph_laplacian_regularization(
     """
     laplacian_matrix = laplacian_matrix.to(gene_weights.device)
 
-    # Ensure W has shape (n_genes, latent_dim) for Tr(W^T L W)
     if gene_weights.shape[0] != laplacian_matrix.shape[0]:
         if gene_weights.shape[1] == laplacian_matrix.shape[0]:
             gene_weights = gene_weights.t()
@@ -52,9 +51,8 @@ def get_reconstruction_loss(
         reconst_loss = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x)
     elif gene_likelihood == "poisson":
         reconst_loss = -Poisson(px_rate).log_prob(x)
-    elif gene_likelihood == "normal":  # For normalised gene expression
+    elif gene_likelihood == "normal":
         reconst_loss = -torch.distributions.normal.Normal(loc=px_rate, scale=px_r).log_prob(x)
-        # reconst_loss = F.mse_loss(px_rate, x)  # Note: Ignoring sd
     else:
         raise ValueError(f"Unknown gene_likelihood: {gene_likelihood}")
 

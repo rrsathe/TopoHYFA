@@ -14,10 +14,6 @@ import pytest
 
 from src.eval_utils import pearson_correlation, pearson_correlation_score, r2, r2_score
 
-# ---------------------------------------------------------------------------
-# pearson_correlation
-# ---------------------------------------------------------------------------
-
 
 class TestPearsonCorrelation:
     def test_output_shape(self, numpy_matrix):
@@ -36,7 +32,7 @@ class TestPearsonCorrelation:
         """Two identical columns must yield corr = 1."""
         rng = np.random.default_rng(0)
         x = rng.random((20, 1)).astype(np.float32)
-        y = x.copy()  # identical
+        y = x.copy()
         corr = pearson_correlation(x, y)
         assert np.allclose(corr[0, 0], 1.0, atol=1e-5)
 
@@ -62,11 +58,6 @@ class TestPearsonCorrelation:
         assert corr.shape == (4, 6)
 
 
-# ---------------------------------------------------------------------------
-# r2
-# ---------------------------------------------------------------------------
-
-
 class TestR2:
     def test_perfect_prediction_is_one(self, numpy_matrix):
         """When pred == gt, R² must be exactly 1."""
@@ -89,11 +80,6 @@ class TestR2:
         bad_pred = numpy_matrix + 100.0
         r_sq = r2(numpy_matrix, bad_pred)
         assert (r_sq < 0).all()
-
-
-# ---------------------------------------------------------------------------
-# Score wrappers
-# ---------------------------------------------------------------------------
 
 
 class TestPearsonCorrelationScore:

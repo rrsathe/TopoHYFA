@@ -20,18 +20,18 @@ class Data:
         self.source = {}
         self.target = {}
         self.source_misc = {}
-        self.target_misc = {}  # Storing number of cells here (for deconvoltion experiment)
+        self.target_misc = {}
         self.source_features = {}
         self.target_features = {}
         self.source_dynamic = {}
         self.target_dynamic = {}
 
         if donor_adata_source is not None:
-            for k in donor_adata_source.obs.columns:  # Static keys
+            for k in donor_adata_source.obs.columns:
                 v = donor_adata_source.obs[k]
                 if k.endswith("_idx"):
                     self.source[k.replace("_idx", "")] = torch.as_tensor(np.asarray(v))
-                elif k.endswith("_dyn"):  # Dynamic IDs
+                elif k.endswith("_dyn"):
                     self.source_dynamic[k.replace("_dyn", "")] = v
                 elif k.endswith("_misc"):
                     self.source_misc[k.replace("_misc", "")] = torch.as_tensor(np.asarray(v))
@@ -43,11 +43,11 @@ class Data:
             self.x_source = torch.tensor(donor_adata_source.layers["x"].toarray(), dtype=dtype)
 
         if donor_adata_target is not None:
-            for k in donor_adata_target.obs.columns:  # Static keys
+            for k in donor_adata_target.obs.columns:
                 v = donor_adata_target.obs[k]
                 if k.endswith("_idx"):
                     self.target[k.replace("_idx", "")] = torch.as_tensor(np.asarray(v))
-                elif k.endswith("_dyn"):  # Dynamic IDs
+                elif k.endswith("_dyn"):
                     self.target_dynamic[k.replace("_dyn", "")] = v
                 elif k.endswith("_misc"):
                     self.target_misc[k.replace("_misc", "")] = torch.as_tensor(np.asarray(v))
@@ -58,8 +58,7 @@ class Data:
 
             self.x_target = torch.tensor(donor_adata_target.layers["x"].toarray(), dtype=dtype)
 
-        # Store cell IDs
-        self.map_dynamic_idxs()  # creates unique cell identifiers
+        self.map_dynamic_idxs()
 
     def map_dynamic_idxs(self):
         """
@@ -78,35 +77,21 @@ class Data:
                 else:
                     idx = len(value_to_idx)
                     out_indices[i] = idx
-                    out_features[idx] = features[
-                        i
-                    ]  # Create features such that they return the appropriate value when
-                    # indexed by the dynamic idx
+                    out_features[idx] = features[i]
                     value_to_idx[v] = idx
             return out_indices, out_features, value_to_idx
 
         self.node_features = {}
-        # TODO: Sanity check -- there cannot be any target nodes that do not belong to source nodes
-        # This might cause issues in aggregation operations, i.e. they have no incoming messages
-        for k in self.source_dynamic:  # assumes same set of keys for source and target
+        for k in self.source_dynamic:
             v_source = self.source_dynamic[k]
             v_target = self.target_dynamic[k]
             v = np.concatenate((v_source, v_target))
 
             features = np.concatenate((self.source_features[k], self.target_features[k]))
-            v_idxs, out_features, v_map = increasing_index_map(v, features)  # map_to_ids(v)
+            v_idxs, out_features, v_map = increasing_index_map(v, features)
             self.source[k] = torch.tensor(v_idxs[: v_source.shape[0]])
             self.target[k] = torch.tensor(v_idxs[v_source.shape[0] :])
 
-            # Concatenate features as they are shared between source and target
-            # sf = self.source_features[k]
-            # print('sf shape', sf.shape)
-            # print('v_idxs shape', v_idxs.shape)
-            # print('sfi shape', sf[v_idxs])
-            # tf = self.target_features[k]
-            # catted_f = torch.cat([sf, tf], dim=0)
-            # self.source_features[k] = torch.tensor(out_features)  # catted_f
-            # self.target_features[k] = torch.tensor(out_features)  # catted_f
             self.node_features[k] = torch.tensor(out_features, dtype=self.dtype)
 
     @staticmethod
@@ -118,7 +103,6 @@ class Data:
         """
         data = Data()
 
-        # Store static features
         for k in datalist[0].source:
             data.source[k] = torch.cat([d.source[k] for d in datalist], dim=0)
         for k in datalist[0].target:
@@ -127,19 +111,16 @@ class Data:
         data.x_source = torch.cat([d.x_source for d in datalist], dim=0)
         data.x_target = torch.cat([d.x_target for d in datalist], dim=0)
 
-        # Store dynamic features
         for k in datalist[0].source_features:
             data.source_features[k] = torch.cat([d.source_features[k] for d in datalist], dim=0)
         for k in datalist[0].target_features:
             data.target_features[k] = torch.cat([d.target_features[k] for d in datalist], dim=0)
 
-        # Store miscellaneous features
         for k in datalist[0].source_misc:
             data.source_misc[k] = torch.cat([d.source_misc[k] for d in datalist], dim=0)
         for k in datalist[0].target_misc:
             data.target_misc[k] = torch.cat([d.target_misc[k] for d in datalist], dim=0)
 
-        # Store dynamic IDs
         for k in datalist[0].source_dynamic:
             data.source_dynamic[k] = np.concatenate([d.source_dynamic[k] for d in datalist])
         for k in datalist[0].target_dynamic:

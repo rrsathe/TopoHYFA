@@ -13,9 +13,8 @@ from src.data_utils import filter_not_obs, select_obs
 
 
 def default_sample_fn(donor_adata_source, donor_adata_target):
-    # print(didx, donor_adata_source.shape[0])
     n = donor_adata_source.shape[0]
-    nb_source = 1 + np.random.choice(n - 1, 1)  # Number of source samples. Min: 1. Max: n - 1
+    nb_source = 1 + np.random.choice(n - 1, 1)
     idxs = np.random.choice(n, nb_source, replace=False)
     source_obs = {k: donor_adata_source.obs[k].values[idxs] for k in donor_adata_source.obs.columns}
     donor_adata_source = select_obs(donor_adata_source, source_obs)
@@ -54,9 +53,6 @@ class HypergraphDataset(Dataset[Data]):
         self.static = static
         self.disjoint = disjoint
         self.sample_fn = sample_fn
-        # self.max_samples = max_samples  # Maximum samples per donor
-
-        # Select samples that satisfy source and target obs
         self.obs_source, self.obs_target = obs_source, obs_target
         adata_source = adata
 
@@ -68,7 +64,6 @@ class HypergraphDataset(Dataset[Data]):
         if obs_target is not None:
             adata_target = select_obs(adata_target, obs_target)
 
-        # Discard source/target samples without matching donors
         self.donor_key = donor_key
         source_donors = adata_source.obs[donor_key].unique()
         target_donors = adata_target.obs[donor_key].unique()
@@ -81,11 +76,9 @@ class HypergraphDataset(Dataset[Data]):
                 f"Selected {self.adata_source.shape[0]} source and {self.adata_target.shape[0]} target samples of {self.nb_donors} unique donors"
             )
 
-        # Create patient map giving a unique ID from [0, nb_patients) to each individual
         self.donor_map = dict(enumerate(sorted(donor_ids)))
         self.donor_map_inv = {v: i for i, v in self.donor_map.items()}
 
-        # Fix source/target tissues of each individual
         if static:
             self.donor_adata_source = []
             self.donor_adata_target = []
@@ -110,14 +103,12 @@ class HypergraphDataset(Dataset[Data]):
         if static:
             return self.donor_adata_source[i], self.donor_adata_target[i]
 
-        # Find actual donor index
         didx = self.donor_map[i]
 
-        # Select samples
         donor_adata_source = select_obs(self.adata_source, {self.donor_key: [didx]})
         donor_adata_target = select_obs(self.adata_target, {self.donor_key: [didx]})
 
-        if self.disjoint:  # Source and target sets do not contain same samples
+        if self.disjoint:
             donor_adata_source, donor_adata_target = self.sample_fn(
                 donor_adata_source, donor_adata_target
             )
@@ -132,7 +123,6 @@ class HypergraphDataset(Dataset[Data]):
         """
         i = int(cast(torch.Tensor, index).item()) if torch.is_tensor(index) else int(index)
 
-        # Find sample indices in data matrix corresponding to patient pidx
         donor_adata_source, donor_adata_target = self._get_source_target(i, static=self.static)
 
         return Data(donor_adata_source, donor_adata_target, dtype=self.dtype)

@@ -27,7 +27,7 @@ GTEX_FILE = "data/GTEX_data.csv"
 MODEL_PATH = "data/model.pth"
 RESULTS_DIR = "results"
 
-# ── CLI ──────────────────────────────────────────────────────────────
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", default="configs/default.yaml", type=str)
 parser.add_argument(
@@ -47,18 +47,18 @@ args, unknown_args = parser.parse_known_args()
 wandb.init(project="multitissue_imputation", config=args.config, mode="disabled")
 config: Any = wandb.config
 
-# ── Data ─────────────────────────────────────────────────────────────
+
 print("Loading data...")
 adata = GTEx_v8_normalised_adata(file=GTEX_FILE)
 
-# Apply gene-subset filter identical to train_gtex.py
+
 target_genes_df = pd.read_csv("Imputation/output/HYFA_export/target_genes_15.csv", index_col=0)
 target_gene_names = target_genes_df.columns.to_numpy(dtype=str)
 gene_symbols = np.asarray(adata.var["Symbol"], dtype=str)
 gene_mask = np.isin(gene_symbols, target_gene_names)
 adata = adata[:, gene_mask].copy()
 
-# Sort columns to match training order
+
 df_var = cast(pd.DataFrame, adata.var).copy()
 df_var["orig_idx"] = np.arange(len(df_var))
 intersect_genes = [g for g in target_gene_names if g in df_var["Symbol"].values]
@@ -67,14 +67,14 @@ adata = adata[:, df_var["orig_idx"].values].copy()
 
 collate_fn = Data.from_datalist
 
-# ── Splits ───────────────────────────────────────────────────────────
+
 train_donors = np.atleast_1d(np.loadtxt("data/splits/gtex_train.txt", delimiter=",", dtype=str))
 test_donors = np.atleast_1d(np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str))
 donors = np.asarray(adata.obs["Participant ID"].astype(str).to_numpy(), dtype=str)
 train_mask = np.isin(donors, train_donors)
 test_mask = np.isin(donors, test_donors)
 
-# ── Model ────────────────────────────────────────────────────────────
+
 device = torch.device(f"cuda:{config.gpu}" if torch.cuda.is_available() else "cpu")
 config.update(
     {
@@ -103,11 +103,11 @@ print("Loading model weights...")
 model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 model.eval()
 
-# ── Evaluation ───────────────────────────────────────────────────────
+
 source_tissues = ["Whole_Blood"]
 target_tissues = ["Heart_L_Vent"]
 
-# Build auxiliary dataset for test set
+
 aux_test_dataset = HypergraphDataset(
     adata[test_mask],
     obs_source={"Tissue": source_tissues},
@@ -120,7 +120,7 @@ aux_test_loader = DataLoader(
     shuffle=False,
 )
 
-# Also build train auxiliary dataset (needed for TEEBoT baseline later)
+
 aux_train_dataset = HypergraphDataset(
     adata[train_mask],
     obs_source={"Tissue": source_tissues},
@@ -151,7 +151,7 @@ with torch.no_grad():
 
 gene_symbols = adata.var["Symbol"].values
 
-# Per-gene metrics
+
 pearson_scores = []
 rmse_scores = []
 for i in range(y_true.shape[1]):
@@ -172,13 +172,13 @@ print(f"Mean RMSE:                {mean_rmse:.4f}\n")
 res_df = pd.DataFrame({"Gene": gene_symbols, "Pearson": pearson_scores, "RMSE": rmse_scores})
 print(res_df.to_string(index=False))
 
-# ── Save outputs ─────────────────────────────────────────────────────
+
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 res_df.to_csv(f"{RESULTS_DIR}/heart_15_genes_eval.csv", index=False)
 print(f"\nSaved per-gene metrics  -> {RESULTS_DIR}/heart_15_genes_eval.csv")
 
-# Participant IDs for rows
+
 participant_ids = [aux_test_dataset.donor_map[p] for p in d.source["Participant ID"].cpu().numpy()]
 
 pred_df = pd.DataFrame(y_pred, columns=gene_symbols, index=participant_ids)
@@ -191,7 +191,7 @@ truth_df.index.name = "Participant_ID"
 truth_df.to_csv(f"{RESULTS_DIR}/ground_truth_test.csv")
 print(f"Saved ground truth      -> {RESULTS_DIR}/ground_truth_test.csv")
 
-# Also save train-set arrays for reuse by benchmark_teebot.py
+
 d_train = next(iter(aux_train_loader))
 x_train_source = d_train.x_source.numpy()
 y_train_target = d_train.x_target.numpy()

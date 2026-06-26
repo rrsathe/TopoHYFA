@@ -1,7 +1,6 @@
 import numpy as np
 
 
-# Metrics
 def pearson_correlation(x, y):
     """
     Computes similarity measure between each pair of genes in the bipartite graph x <-> y
@@ -22,14 +21,13 @@ def pearson_correlation(x, y):
 
 
 def r2(x_gt, x_pred):
-    means = np.mean(x_gt, axis=0)  # Shape=(nb_genes,)
+    means = np.mean(x_gt, axis=0)
     ss_res = np.sum((x_gt - x_pred) ** 2, axis=0)
     ss_tot = np.sum((x_gt - means) ** 2, axis=0)
     r_sq = 1 - ss_res / ss_tot
     return r_sq
 
 
-# Score functions
 def pearson_correlation_score(x_gt, x_pred, sample_corr=False):
     if sample_corr:
         corrs = pearson_correlation(x_gt.T, x_pred.T)

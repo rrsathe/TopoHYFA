@@ -36,8 +36,8 @@ def GTEx(file=GTEX_FILE):
         - sampl_ids: numpy array with sample IDs (GTEx IDs of individuals, e.g. GTEX-1117F). Shape=(nb_samples,)
         - tissues: numpy array indicating the tissue of each sample. Shape=(nb_samples,)
     """
-    # Load data
-    df = pd.read_csv(file, index_col=0)  # .sample(frac=1, random_state=random_seed)
+
+    df = pd.read_csv(file, index_col=0)
     tissues = df["tissue"].values
     sampl_ids = df.index.values
     del df["tissue"]
@@ -68,20 +68,15 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
 
     participant_series = adata.obs["Participant ID"]
 
-    # Delete participants with only one measured tissue
     adata = adata[participant_series.duplicated(keep=False)]
 
-    # Static keys
     tissue_series = adata.obs["Tissue"]
     adata.obs["Tissue_idx"], tissue_dict = map_to_ids(tissue_series.to_numpy())
     adata.uns["Tissue_dict"] = tissue_dict
-    # del adata.obs['Tissue']
 
-    # Dynamic keys
     participant_series = adata.obs["Participant ID"]
     adata.obs["Participant ID_dyn"] = participant_series
 
-    # Populate participant features
     age_values = metadata_df.loc[participant_series.to_numpy(), "AGE"].to_numpy()
     adata.obs["Age"] = np.asarray([float(a[:2]) for a in age_values], dtype=float)
 
@@ -95,12 +90,10 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
     adata.obsm["Participant ID_feat"] = np.stack((donor_age, donor_sex), axis=-1)
     adata.uns["Sex_dict"] = donor_sex_dict
 
-    # Put gene expression in layer
     if adata.X is None:
         raise ValueError("adata.X is None and cannot be stored in layers['x'].")
     adata.layers["x"] = cast(Any, adata.X)
 
-    # Set up tissue colors
     colors = [
         "#ffaa56",
         "#cdad22",
@@ -204,7 +197,6 @@ if __name__ == "__main__":
     )
     args, unknown = parser.parse_known_args()
 
-    # Initialise wandb
     run_name = f"{'_'.join(args.source_tissue)}_to_{args.target_tissue}_lambda{args.lambda_reg}"
     wandb.init(
         project="multitissue_imputation",
@@ -216,17 +208,14 @@ if __name__ == "__main__":
     config.lambda_reg = args.lambda_reg
     print(config)
 
-    # Load data
     adata = GTEx_v8_normalised_adata()
 
-    # Dynamic target genes bottleneck
     target_genes_df = pd.read_csv(args.target_genes, index_col=0)
     target_gene_names = target_genes_df.columns.to_numpy()
     symbol_series = cast(pd.Series, adata.var["Symbol"])
     gene_mask = np.isin(symbol_series.to_numpy(), target_gene_names)
     adata = adata[:, gene_mask].copy()
 
-    # Sort columns exactly tracking the target subset order to align adjacency indices
     df_var = adata.var.copy()
     df_var["orig_idx"] = np.arange(len(df_var))
     symbol_series = cast(pd.Series, df_var["Symbol"])
@@ -234,21 +223,17 @@ if __name__ == "__main__":
     df_var = df_var.set_index("Symbol").loc[intersect_genes].reset_index()
     adata = adata[:, cast(pd.Series, df_var["orig_idx"]).to_numpy()].copy()
 
-    # Confounders override mapping tracking identical metadata distributions if subset
     con_df = pd.read_csv(args.confounders, index_col=0)
     subset_patients = cast(pd.Series, adata.obs["Participant ID"]).to_numpy()
     valid_map = np.isin(subset_patients, con_df.index)
 
-    # Adjacency Matrix
     adjacency_matrix = load_adjacency_matrix(
         args.topology_matrix, cast(pd.Series, adata.var["Symbol"]).to_numpy()
     )
 
-    # Dictionaries
     _, tissue_dict = map_to_ids(adata.obs["Tissue"])
     tissue_dict_inv = {v: k for k, v in tissue_dict.items()}
 
-    # Split train/val/test
     donors = cast(pd.Series, adata.obs["Participant ID"]).to_numpy()
     train_donors = np.loadtxt("data/splits/gtex_train.txt", delimiter=",", dtype=str)
     val_donors = np.loadtxt("data/splits/gtex_val.txt", delimiter=",", dtype=str)
@@ -259,7 +244,7 @@ if __name__ == "__main__":
     print(len(train_donors), len(val_donors), len(test_donors))
 
     collate_fn = Data.from_datalist
-    dtype = torch.float32  # torch.double
+    dtype = torch.float32
     target_tissues = [args.target_tissue]
     source_tissues = args.source_tissue
 
@@ -272,7 +257,6 @@ if __name__ == "__main__":
         obs_source={"Tissue": source_tissues},
         obs_target={"Tissue": target_tissues},
     )
-    # test_dataset = HypergraphDataset(adata[test_mask], dtype=dtype, static=True)
 
     train_loader = DataLoader(
         train_dataset,
@@ -288,13 +272,9 @@ if __name__ == "__main__":
         shuffle=False,
         num_workers=args.num_workers,
     )
-    # test_loader = DataLoader(test_dataset, batch_size=config.batch_size, collate_fn=collate_fn, shuffle=False, num_workers=num_workers)
 
-    # device = torch.device("cpu")
-    # Use certain GPU
     device = torch.device(f"cuda:{config.gpu}" if torch.cuda.is_available() else "cpu")
 
-    # Select dynamic/static node types
     config.static_node_types = {
         "Tissue": (len(adata.obs["Tissue_idx"].unique()), config.d_tissue),
         "metagenes": (config.meta_G, config.d_gene),
@@ -303,13 +283,11 @@ if __name__ == "__main__":
         "Participant ID": (len(adata.obs["Participant ID"].unique()), config.d_patient)
     }
 
-    # Model
     config.G = adata.shape[-1]
-    model = HypergraphNeuralNet(config).to(device)  # .double()
+    model = HypergraphNeuralNet(config).to(device)
     model.metagenes_decoder.adjacency_matrix = adjacency_matrix.to(device)
     model.metagenes_decoder.lambda_reg = args.lambda_reg
 
-    # Train
     def rho(x, out):
         x_pred = out["px_rate"].detach().cpu().numpy()
         return np.mean(pearson_correlation_score(x, x_pred, sample_corr=True))

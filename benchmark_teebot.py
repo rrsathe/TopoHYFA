@@ -16,7 +16,7 @@ from src.baselines import PCA_linear_regression_baseline
 
 RESULTS_DIR = "results"
 
-# ── Load precomputed arrays from eval_15.py ──────────────────────────
+
 print("Loading cached arrays from eval_15.py ...")
 data = np.load(f"{RESULTS_DIR}/eval_arrays.npz", allow_pickle=True)
 x_train_source = data["x_train_source"]
@@ -34,8 +34,7 @@ print(
     f"Genes: {len(gene_symbols)}"
 )
 
-# ── TEEBoT baseline ─────────────────────────────────────────────────
-# Reshape covariates if multi-tissue (take first tissue slice)
+
 if x_train_covs.ndim == 3:
     x_train_covs = x_train_covs[:, 0, :]
     x_test_covs = x_test_covs[:, 0, :]
@@ -50,28 +49,26 @@ y_teebot_pred = PCA_linear_regression_baseline(
     n_components=min(30, x_train_source.shape[1] - 1),
 )
 
-# ── Metrics ──────────────────────────────────────────────────────────
+
 hyfa_pearson = []
 teebot_pearson = []
 hyfa_rmse = []
 teebot_rmse = []
 
 for i in range(len(gene_symbols)):
-    # HYFA
     if np.std(y_test_target[:, i]) > 0 and np.std(y_hyfa_pred[:, i]) > 0:
         hyfa_pearson.append(np.corrcoef(y_test_target[:, i], y_hyfa_pred[:, i])[0, 1])
     else:
         hyfa_pearson.append(0.0)
     hyfa_rmse.append(np.sqrt(mean_squared_error(y_test_target[:, i], y_hyfa_pred[:, i])))
 
-    # TEEBoT
     if np.std(y_test_target[:, i]) > 0 and np.std(y_teebot_pred[:, i]) > 0:
         teebot_pearson.append(np.corrcoef(y_test_target[:, i], y_teebot_pred[:, i])[0, 1])
     else:
         teebot_pearson.append(0.0)
     teebot_rmse.append(np.sqrt(mean_squared_error(y_test_target[:, i], y_teebot_pred[:, i])))
 
-# ── Comparison table ─────────────────────────────────────────────────
+
 comp_df = pd.DataFrame(
     {
         "Gene": gene_symbols,
@@ -94,13 +91,13 @@ print(
 comp_df.to_csv(f"{RESULTS_DIR}/hyfa_vs_teebot_comparison.csv", index=False)
 print(f"\nSaved comparison CSV -> {RESULTS_DIR}/hyfa_vs_teebot_comparison.csv")
 
-# ── Bar chart ────────────────────────────────────────────────────────
+
 x = np.arange(len(gene_symbols))
 width = 0.35
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
 
-# Pearson
+
 bars1 = ax1.bar(x - width / 2, hyfa_pearson, width, label="HYFA", color="#4C72B0")
 bars2 = ax1.bar(x + width / 2, teebot_pearson, width, label="TEEBoT", color="#DD8452")
 ax1.set_ylabel("Pearson Correlation")
@@ -109,7 +106,7 @@ ax1.legend()
 ax1.axhline(y=0, color="gray", linestyle="--", linewidth=0.8)
 ax1.set_ylim(min(min(hyfa_pearson), min(teebot_pearson)) - 0.1, 1.0)
 
-# RMSE
+
 bars3 = ax2.bar(x - width / 2, hyfa_rmse, width, label="HYFA", color="#4C72B0")
 bars4 = ax2.bar(x + width / 2, teebot_rmse, width, label="TEEBoT", color="#DD8452")
 ax2.set_ylabel("RMSE")

@@ -13,10 +13,6 @@ import torch
 
 from src.losses import compute_laplacian, get_reconstruction_loss, graph_laplacian_regularization
 
-# ---------------------------------------------------------------------------
-# compute_laplacian
-# ---------------------------------------------------------------------------
-
 
 class TestComputeLaplacian:
     def test_output_shape(self, n_genes):
@@ -27,7 +23,7 @@ class TestComputeLaplacian:
     def test_diagonal_equals_row_degree(self, n_genes):
         """Diagonal of L must equal the row-sum of A when A has no self-loops."""
         A = torch.rand(n_genes, n_genes).abs()
-        A.fill_diagonal_(0.0)  # remove self-loops so L_ii = deg(i) - 0 = deg(i)
+        A.fill_diagonal_(0.0)
         L = compute_laplacian(A)
         expected_diag = A.sum(dim=1)
         assert torch.allclose(L.diagonal(), expected_diag)
@@ -35,14 +31,14 @@ class TestComputeLaplacian:
     def test_off_diagonal_negates_A(self, n_genes):
         """Off-diagonal of L must equal -A."""
         A = torch.rand(n_genes, n_genes).abs()
-        A.fill_diagonal_(0.0)  # use hollow A for a clean Laplacian
+        A.fill_diagonal_(0.0)
         L = compute_laplacian(A)
         mask = ~torch.eye(n_genes, dtype=torch.bool)
         assert torch.allclose(L[mask], -A[mask])
 
     def test_symmetry_preserved_for_symmetric_input(self, n_genes):
         A = torch.rand(n_genes, n_genes)
-        A = (A + A.t()) / 2  # symmetrise
+        A = (A + A.t()) / 2
         L = compute_laplacian(A)
         assert torch.allclose(L, L.t())
 
@@ -56,11 +52,6 @@ class TestComputeLaplacian:
         A = torch.zeros(5, 5)
         L = compute_laplacian(A)
         assert torch.allclose(L, torch.zeros(5, 5))
-
-
-# ---------------------------------------------------------------------------
-# graph_laplacian_regularization
-# ---------------------------------------------------------------------------
 
 
 class TestGraphLaplacianRegularization:
@@ -96,14 +87,9 @@ class TestGraphLaplacianRegularization:
 
     def test_incompatible_shapes_raise(self):
         L = torch.eye(4)
-        W = torch.randn(7, 3)  # neither dim matches L.shape[0] == 4
+        W = torch.randn(7, 3)
         with pytest.raises(ValueError, match="Incompatible shapes"):
             graph_laplacian_regularization(W, L)
-
-
-# ---------------------------------------------------------------------------
-# get_reconstruction_loss
-# ---------------------------------------------------------------------------
 
 
 class TestGetReconstructionLoss:

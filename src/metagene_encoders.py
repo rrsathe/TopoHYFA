@@ -15,7 +15,7 @@ class PlainEncoder(torch.nn.Module):
 
     def __init__(self, in_dim, out_dim):
         super().__init__()
-        self.encoder = nn.Sequential(nn.Linear(in_dim, out_dim))  # , nn.ReLU()
+        self.encoder = nn.Sequential(nn.Linear(in_dim, out_dim))
 
     def forward(self, x, **kwargs):
         return self.encoder(x)
@@ -34,7 +34,7 @@ class AttentionEncoder(torch.nn.Module):
         d_metagene = metagene_params.shape[-1]
 
         hdim = d_gene + d_metagene
-        # config.d_edge_attr is the number of heads. Each head is an edge feature for a given metagene
+
         self.att_mlp = nn.Sequential(
             nn.Linear(d_gene + d_metagene, hdim, bias=False),
             nn.LeakyReLU(0.1),
@@ -42,15 +42,11 @@ class AttentionEncoder(torch.nn.Module):
         )
 
     def forward(self, x, return_e=False, **kwargs):
-        grid_features = meshgrid_2d(
-            self.gene_params, self.metagene_params
-        )  # Shape=(nb_genes, nb_metagenes, feature_dim)
-        e = self.att_mlp(grid_features)  # Shape=(nb_genes, nb_metagenes, d_edge_attr)
-        a = torch.nn.Softmax(dim=0)(e)  # Shape=(nb_genes, nb_metagenes, d_edge_attr)
-        a = torch.reshape(
-            a, (self.gene_params.shape[0], -1)
-        )  # Shape=(nb_genes, nb_metagenes * d_edge_attr)
-        metagene_features = x @ a  # Shape=(nb_samples, nb_metagenes * d_edge_attr)
+        grid_features = meshgrid_2d(self.gene_params, self.metagene_params)
+        e = self.att_mlp(grid_features)
+        a = torch.nn.Softmax(dim=0)(e)
+        a = torch.reshape(a, (self.gene_params.shape[0], -1))
+        metagene_features = x @ a
 
         if return_e:
             return metagene_features, e

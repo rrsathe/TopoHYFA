@@ -19,20 +19,17 @@ class HypergraphNeuralNet(torch.nn.Module):
         :param config: configuration object (e.g. wandb config) with hyperparameters
         :param patient_features: Initial node features of each individual. Shape=(nb_individuals, feature_dim)
         """
-        super().__init__()  # HypergraphNeuralNet, self
+        super().__init__()
         self.config = config
         self.var_eps = 1e-4
 
-        # Gene and tissue embeddings
         params_dict: dict[str, nn.Parameter] = {}
 
         total_dim = 0
         for (
             k,
             v,
-        ) in (
-            config.static_node_types.items()
-        ):  # Nodes with learnable weights. They do not get updated in message passing
+        ) in config.static_node_types.items():
             n, dim = v
             params_dict[k] = nn.Parameter(nn.init.xavier_uniform_(torch.zeros((n, dim))))
             total_dim += dim
@@ -41,21 +38,16 @@ class HypergraphNeuralNet(torch.nn.Module):
         for (
             _k,
             v,
-        ) in (
-            config.dynamic_node_types.items()
-        ):  # Nodes with non-learnable weights. They get updated in message passing
+        ) in config.dynamic_node_types.items():
             n, dim = v
             total_dim += dim
 
-        # Store metagene IDs
         meta_G = config.meta_G
         self.meta_G = meta_G
         self.metagenes = nn.Parameter(torch.arange(meta_G), requires_grad=False)
 
-        # Reduce dimensionality of genes. Compute metagene values (i.e. hyperedge attributes)
         self.metagenes_encoder = PlainEncoder(in_dim=config.G, out_dim=meta_G * config.d_edge_attr)
 
-        # Hypergraph layers
         layer = {"gat": GATHypergraphLayer, "mpnn": MPNNHypergraphLayer}[config.layer]
 
         self.hypergraph_layers = nn.ModuleList(
@@ -77,12 +69,10 @@ class HypergraphNeuralNet(torch.nn.Module):
             * config.n_graph_layers
         )
 
-        # Map metagene values back to original, high-dimensional space
         self.metagenes_decoder = get_decoder(config.loss_type)(
             in_dim=meta_G * config.d_edge_attr, out_dim=config.G
-        )  # """PlainDecoder(in_dim=meta_G * config.d_edge_attr, out_dim=config.G)"""
+        )
 
-        # MLP that predicts latent values of a metagene from the factorised representations of all nodes
         self.prediction_mlp = MLP(
             in_dim=total_dim,
             h_dim=total_dim,
@@ -122,10 +112,8 @@ class HypergraphNeuralNet(torch.nn.Module):
                 - tissue_features: features of tissue nodes. Shape=(nb_tissues, d_tissue)
                 - metagene_features: features of tissue nodes. Shape=(nb_metagenes, d_metagene)
         """
-        # Obtain static node features
         static_node_features = self.params
 
-        # Expand shape of dynamic node features to match specifications
         dynamic_node_features_: dict[str, Any] = {}
         for k, v in self.config.dynamic_node_types.items():
             _, spec_dim = v
@@ -138,27 +126,22 @@ class HypergraphNeuralNet(torch.nn.Module):
                 dynamic_node_features_[k][:, :actual_dim] = features
             dynamic_node_features_[k] = dynamic_node_features_[k].to(features.device)
 
-        # dynamic_node_features = {'Cell': cell_features, 'Donor': donor_features}
         node_features = (
             dynamic_node_features_,
             static_node_features,
-        )  # Collapsed features for each node
+        )
 
-        # Hypergraph layers
         for layer in self.hypergraph_layers:
             dynamic_updates, hyperedge_attr = layer(hyperedge_index, hyperedge_attr, node_features)
 
-            # Update node features
             for k, v in dynamic_node_features_.items():
                 dynamic_node_features_[k] = v + dynamic_updates[k]
 
             node_features = (dynamic_node_features_, static_node_features)
 
-        # Compute parameters of latent distribution
-        for k in dynamic_node_features_:  # dynamic_node_features_.items():
-            q = dynamic_node_features_[k]  # [hyperedge_index[k]]
+        for k in dynamic_node_features_:
+            q = dynamic_node_features_[k]
 
-            # Store parameters
             dynamic_node_features_[k] = {"latent": q, "mu": q}
 
         node_features = (dynamic_node_features_, static_node_features)
@@ -180,13 +163,11 @@ class HypergraphNeuralNet(torch.nn.Module):
         """
         dynamic_node_features, static_node_features = node_features
 
-        # Get sampled latent values
         if use_latent_mean:
             dynamic_node_features_ = {k: v["mu"] for k, v in dynamic_node_features.items()}
         else:
             dynamic_node_features_ = {k: v["latent"] for k, v in dynamic_node_features.items()}
 
-        # Predict metagene values
         node_features_ = {**dynamic_node_features_, **static_node_features}
         catted_features = torch.cat(
             [node_features_[k][target_hyperedge_index[k]] for k in sorted(node_features_.keys())],

@@ -69,12 +69,11 @@ def docker_build() -> bool:
 
 def docker_test() -> bool:
     print("\n=== Validating Docker Compose & Smoke Testing ===")
-    # 1. Validate Docker Compose syntax
+
     compose_ok = run_command(["docker", "compose", "config"])
     if not compose_ok:
         return False
 
-    # 2. Run a smoke test to check package import inside the built image
     smoke_cmd = [
         "docker",
         "run",

@@ -3,10 +3,6 @@ from pathlib import Path
 import numpy as np
 from Bio.KEGG import REST
 
-######################################
-# Utilities to retrieve KEGG patways #
-######################################
-
 
 def list_KEGG_human_pathways():
     lines = REST.kegg_list("pathway", "hsa").readlines()
@@ -16,16 +12,14 @@ def list_KEGG_human_pathways():
 
 
 def get_pathway_info(pathway):
-    pathway_file = REST.kegg_get(pathway).read()  # query and read each pathway
+    pathway_file = REST.kegg_get(pathway).read()
 
-    # iterate through each KEGG pathway file, keeping track of which section
-    # of the file we're in, only read the gene in each pathway
     current_section = None
     gene_symbols = set()
     diseases = set()
     drugs = set()
     for line in pathway_file.rstrip().split("\n"):
-        section = line[:12].strip()  # section names are within 12 columns
+        section = line[:12].strip()
         if section != "":
             current_section = section
 
@@ -56,7 +50,6 @@ def human_pathway_data(gene_symbols, human_pathways):
     for i, p in enumerate(hp):
         gs, _, _ = get_pathway_info(p)
 
-        # Store genes of the pathway
         idxs = np.argwhere(np.isin(gene_symbols, list(gs))).flatten()
         genes_p[idxs, i] = 1
 
@@ -66,16 +59,10 @@ def human_pathway_data(gene_symbols, human_pathways):
 def load_genes_pathway(pathway, gene_symbols, hp_desc, genes_p):
     pathway_idx = np.flatnonzero(np.char.find(hp_desc, pathway) != -1)[0]
 
-    # Genes from selected pathway
     genes_from_selected_pathway = genes_p[:, pathway_idx]
     genes_pathway_idxs = np.argwhere(genes_from_selected_pathway)[:, 0]
     gps = gene_symbols[genes_pathway_idxs]
     return gps
-
-
-##########################################
-# Genes belonging to signalling pathways #
-##########################################
 
 
 def _load_pathway_mask(gene_symbols, key):

@@ -62,15 +62,12 @@ def main():
     )
     args = parser.parse_args()
 
-    # ── wandb (disabled for inference) ───────────────────────────────
     wandb.init(project="multitissue_imputation", config=args.config, mode="disabled")
     config = wandb.config
 
-    # ── Data ─────────────────────────────────────────────────────────
     print("Loading GTEx reference data ...")
     adata = GTEx_v8_normalised_adata()
 
-    # Apply gene-subset filter
     target_genes_df = pd.read_csv(args.target_genes, index_col=0)
     target_gene_names = target_genes_df.columns.values
     gene_mask = np.isin(adata.var["Symbol"].values, target_gene_names)
@@ -85,7 +82,6 @@ def main():
     gene_symbols = adata.var["Symbol"].values
     print(f"  Gene subset: {len(gene_symbols)} genes")
 
-    # ── Model ────────────────────────────────────────────────────────
     device = torch.device(f"cuda:{config.gpu}" if torch.cuda.is_available() else "cpu")
     config.update(
         {
@@ -117,12 +113,10 @@ def main():
     model.load_state_dict(torch.load(args.weights, map_location=device))
     model.eval()
 
-    # ── Build dataset ────────────────────────────────────────────────
     if args.input_csv is not None:
         print("Custom input not yet supported in hypergraph dataset mode.")
         print("Running on GTEx test set as demo instead.")
 
-    # Use GTEx test set
     test_donors = np.loadtxt("data/splits/gtex_test.txt", delimiter=",", dtype=str)
     donors = adata.obs["Participant ID"].values
     test_mask = np.isin(donors, test_donors)
@@ -140,7 +134,6 @@ def main():
         shuffle=False,
     )
 
-    # ── Inference ────────────────────────────────────────────────────
     print(f"Running inference: {args.source} -> {args.target} ...")
     with torch.no_grad():
         d = next(iter(aux_loader))

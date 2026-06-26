@@ -22,7 +22,7 @@ target_genes_symbols = ['CHDH', 'SREBF1', 'CA14', 'CYP2J2', 'CTF1', 'SNX22', 'ET
 gene_idx_mask = adata.var['Symbol'].isin(target_genes_symbols)
 if 'Symbol' not in adata.var:
     gene_idx_mask = adata.var.index.isin(target_genes_symbols) # fallback
-    
+
 target_gene_idxs = np.where(gene_idx_mask)[0]
 print(f"Found {len(target_gene_idxs)} target genes out of {len(target_genes_symbols)}")
 
@@ -59,7 +59,7 @@ for i in range(len(target_gene_idxs)):
     else:
         corr = 0.0
     pearson_scores.append(corr)
-    
+
     # RMSE
     rmse = np.sqrt(mean_squared_error(y_test_sub[:, i], y_test_pred_sub[:, i]))
     rmse_scores.append(rmse)
@@ -82,15 +82,13 @@ print("Per-gene details:\\n")
 print(res_df.to_string(index=False))
 """
 
-# We search for the baseline loop block that defines `source_tissues = ['Whole_Blood']`
-# and runs `for tt in target_tissues:`
+
 found = False
 for i, cell in enumerate(nb.cells):
     if cell.cell_type == "code" and (
         "sample_corr = True\n\ndef rho(x, x_pred):" in cell.source
         or "validate = False\nsource_tissues = ['Whole_Blood']" in cell.source
     ):
-        # We replace this massive baseline script cell
         nb.cells[i].source = new_eval_code
         found = True
         print(f"Replaced giant evaluation loop at cell index {i}.")

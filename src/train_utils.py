@@ -216,7 +216,6 @@ def train(
         optimiser, mode="min", factor=0.99, patience=5, min_lr=0.00001
     )
 
-    # Train/eval loop
     if epochs is None:
         epochs = config.epochs
     assert epochs is not None
@@ -254,7 +253,6 @@ def train(
                 for k, v in val_losses.items():
                     losses_dict[f"val/{k}"] = v
 
-                # Save best model
                 if "loss" in val_losses:
                     if val_losses["loss"] < best_loss:
                         best_loss = val_losses["loss"]
@@ -270,7 +268,6 @@ def train(
             if use_wandb:
                 wandb.log(losses_dict)
 
-            # Cleaner tqdm display
             postfix = {"loss": f"{losses['loss']:.4f}"}
             if val_loader is not None and "loss" in val_losses:
                 postfix["val_loss"] = f"{val_losses['loss']:.4f}"
@@ -390,7 +387,6 @@ def eval_step(model: torch.nn.Module, loader: DataLoader, **kwargs) -> dict[str,
             losses_float = {k: v.item() for k, v in losses.items()}
             losses_float.update(metrics)
 
-            # Pearson correlation
             if hasattr(data, "x_target") and isinstance(out, dict) and "px_rate" in out:
                 target = data.x_target.detach().cpu().numpy().flatten()
                 pred = out["px_rate"].detach().cpu().numpy().flatten()
@@ -425,17 +421,13 @@ def encode(
     """
     x_source = data.x_source
     if preprocess_fn is not None:
-        # Compute log1p (just for input data)
         x_source = preprocess_fn(data.x_source)
 
-    # Prediction model
     x_source = model.encode_metagenes(x_source)
 
-    # Sparsify data
     metagenes = model.metagenes
     hyperedge_index, hyperedge_attr = sparsify(data.source, metagenes, x=x_source)
 
-    # Compute node features
     node_features = model(hyperedge_index, hyperedge_attr, dynamic_node_features=data.node_features)
 
     return cast(tuple[dict[str, Any], dict[str, Any]], node_features)
@@ -464,18 +456,10 @@ def decode(
     metagenes = model.metagenes
     target_hyperedge_index, _ = sparsify(data.target, metagenes, x=None)
 
-    # Compute predictions for each metagene in the target tissues
-    x_pred_metagenes = model.predict(
-        target_hyperedge_index, node_features, **kwargs
-    )  # Out shape=(nb_metagenes, metagene_dim)
+    x_pred_metagenes = model.predict(target_hyperedge_index, node_features, **kwargs)
 
-    # Densify data
     x_pred_metagenes = densify(data.target, metagenes, target_hyperedge_index, x_pred_metagenes)
 
-    # Factor that multiplies library size (i.e. number of cells in the summed signature). For deconvolution experiment,
-    # we set this value (extrinsic to the model) to the number of cells of the summed signature at train time. This is
-    # because averaging signatures result in "non-integer counts" and so NB/ZINB losses cannot be used. At test time,
-    # we predict the "average" signatures (the number of cells in the signature is 1, i.e. n_cells=1)
     use_observed_n_cells = n_cells == 0
     if use_observed_n_cells:
         n_cells = data.target_misc["n_cells"][:, None]
@@ -487,9 +471,8 @@ def decode(
         if n_cells is not None:
             library = library / data.target_misc["n_cells"][:, None]
         if library is not None:
-            log_library = torch.log(library)  # [:, None]
+            log_library = torch.log(library)
 
-    # Map metagene features back to high-dimensional space
     out = model.decode_metagenes(
         x_pred_metagenes, log_library=log_library, n_cells=n_cells, **kwargs
     )
@@ -527,17 +510,15 @@ def forward(
     :param kwargs: keyword arguments (currently unused)
     :return: predictions, loss, and node features (individual features, tissue features, metagene features)
     """
-    # Compute node features
+
     node_features = encode(data, model, preprocess_fn=preprocess_fn)
 
-    # Set latent variables to mean value (i.e. instead of sampling)
     if use_latent_means:
         (dynamic_node_features, static_node_features) = node_features
         for k in dynamic_node_features:
             dynamic_node_features[k]["latent"] = dynamic_node_features[k]["mu"]
         node_features = (dynamic_node_features, static_node_features)
 
-    # Decode
     out = decode(
         data,
         model,
@@ -598,7 +579,6 @@ def compute_loss(
             p = Normal(torch.zeros_like(mu), torch.ones_like(sigma))
             kl_loss += torch.mean(torch.sum(kl(q, p), dim=-1))
 
-    # Compute loss
     loss = rec_loss + beta * kl_loss + lambda_reg * reg_loss
     out_dict = {
         "loss": loss,

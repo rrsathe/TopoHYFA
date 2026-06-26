@@ -6,10 +6,6 @@ import numpy as np
 import pytest
 import torch
 
-# ---------------------------------------------------------------------------
-# Determinism
-# ---------------------------------------------------------------------------
-
 
 @pytest.fixture(autouse=True)
 def _seed():
@@ -17,10 +13,6 @@ def _seed():
     torch.manual_seed(0)
     np.random.seed(0)
 
-
-# ---------------------------------------------------------------------------
-# Common tensor shapes
-# ---------------------------------------------------------------------------
 
 BATCH = 8
 GENES = 16
@@ -42,15 +34,10 @@ def n_latent() -> int:
     return LATENT
 
 
-# ---------------------------------------------------------------------------
-# Shared tensors
-# ---------------------------------------------------------------------------
-
-
 @pytest.fixture()
 def positive_rate() -> torch.Tensor:
     """(BATCH, GENES) positive float tensor – valid mean parameter for NB/Poisson."""
-    return torch.rand(BATCH, GENES) + 0.5  # values in [0.5, 1.5]
+    return torch.rand(BATCH, GENES) + 0.5
 
 
 @pytest.fixture()

@@ -10,9 +10,6 @@ from src.data_utils import map_to_ids, select_obs
 from src.distributions import ZeroInflatedNegativeBinomial
 from src.train_utils import decode, encode
 
-# =================================
-# Load GTEx v9 data
-# =================================
 GTEX_v9_FILE = "/local/scratch-2/rv340/GTEx/v9/GTEx_8_tissues_snRNAseq_atlas_071421.public_obs.h5ad"
 
 
@@ -38,20 +35,15 @@ def mask_differentially_expressed_genes(
 ):
     adata_ = adata.copy()
 
-    # Filter cells
     sc.pp.filter_cells(adata_, min_counts=min_counts)
 
-    # Total-count normalize (library-size correct) the data matrix to 10,000 reads per cell, so that counts become comparable among cells.
     adata_.X = adata_.layers["counts"]
     sc.pp.normalize_total(adata_, inplace=True, target_sum=1e4)
 
-    # Logarithmise data
     sc.pp.log1p(adata_)
 
-    # Statistical test
     sc.tl.rank_genes_groups(adata_, ct_key, use_raw=False, method="wilcoxon", key_added="wilcoxon")
 
-    # Select genes with adjusted pval < threshold
     mask_selected = np.zeros(adata_.shape[1])
     for ct in adata_.obs[ct_key].unique():
         pvals = adata_.uns["wilcoxon"]["pvals_adj"][ct]
@@ -67,7 +59,6 @@ def select_genes(
     n_top_genes=3000,
     pval_threshold=0.05,
 ):
-    # Select highly variable genes
     if strategy == "highly variable v8":
         assert adata_v8 is not None
         sc.pp.highly_variable_genes(
@@ -95,11 +86,6 @@ def select_genes(
     return adata_v8, adata_v9
 
 
-# =================================
-# Calculate GTEx v9 signatures
-# =================================
-
-
 def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=10):
     ct_adatas = []
     for donor_id in adata_v9.obs["Participant ID"].unique():
@@ -109,7 +95,6 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
             for ct in donor_tissue_adata.obs[ct_key].unique():
                 donor_tissue_ct_adata = donor_tissue_adata[donor_tissue_adata.obs[ct_key] == ct]
 
-                # Aggregate
                 ct_counts = donor_tissue_ct_adata.layers["counts"].toarray().sum(axis=0)[None, :]
                 aggr_adata = sc.AnnData(ct_counts)
                 aggr_adata.obs["Participant ID"] = donor_id
@@ -125,7 +110,6 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
     ct_adata_v9.obs.index = np.arange(ct_adata_v9.shape[0])
     ct_adata_v9.obs.index = ct_adata_v9.obs.index.astype(str)
 
-    # Prepare adata for hypergraph dataset
     x_value = _to_memory_if_available(ct_adata_v9.X)
     ct_adata_v9.layers["x"] = x_value
     participant_series = cast(pd.Series, ct_adata_v9.obs["Participant ID"])
@@ -145,7 +129,6 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
     )
     ct_adata_v9.obs["n_cells_misc"] = cast(pd.Series, ct_adata_v9.obs["n_cells"])
 
-    # Make tissue indices homogeneous
     tissue_series = cast(pd.Series, ct_adata_v9.obs["Tissue"])
     tissue_series.unique()
     tissue_dict_v9 = {
@@ -153,36 +136,26 @@ def GTEx_v9_signatures(adata_v8, adata_v9, ct_key="Broad cell type", threshold=1
         "Esophagus muscularis": 26,
         "Lung": 31,
         "Prostate": 38,
-        "Skin": 40,  # Assuming sun exposed. Sun not exposed is 39
-        "Heart": 27,  # Assuming heart attrial. Heart left ventricle is 28
+        "Skin": 40,
+        "Heart": 27,
         "Esophagus mucosa": 25,
         "Breast": 19,
     }
     ct_adata_v9.uns["Tissue_dict"] = tissue_dict_v9
     ct_adata_v9.obs["Tissue_idx"] = tissue_series.map(tissue_dict_v9)
 
-    # Discard underrepresented cell-types
-    # TODO: Instead of discarding underrepresented cell-types, once could generate several profiles per individual-tissue-ct
-    # by selecting a random subset of cell-types. This might allow to better capture the variation of each combination.
     ct_series = cast(pd.Series, ct_adata_v9.obs[ct_key])
     selected_ct = {k: v for k, v in Counter(ct_series.to_numpy()).items() if v >= threshold}
     ct_adata_v9 = select_obs(ct_adata_v9, {ct_key: selected_ct.keys()})
 
-    # Map to indices
     ct_series = cast(pd.Series, ct_adata_v9.obs[ct_key])
     ct_adata_v9.obs["Cell type_idx"], ct_dict = map_to_ids(ct_series.to_numpy())
     ct_adata_v9.uns["ct_dict"] = ct_dict
 
-    # Set layers
     x_value = _to_memory_if_available(ct_adata_v9.X)
     ct_adata_v9.layers["x"] = x_value
 
     return ct_adata_v9
-
-
-# =================================
-# Infer signatures
-# =================================
 
 
 def infer_signatures(d, model, device, inference_mode="mean", generative_mode="sample", **kwargs):
@@ -191,7 +164,6 @@ def infer_signatures(d, model, device, inference_mode="mean", generative_mode="s
         d = d.to(device)
         node_features = encode(d, model, **kwargs)
 
-        # Get latent variables
         (dynamic_node_features_, static_node_features) = node_features
 
         if inference_mode == "sample":
@@ -201,7 +173,6 @@ def infer_signatures(d, model, device, inference_mode="mean", generative_mode="s
             ).sample()
             dynamic_node_features_["Participant ID"]["latent"] = sample
         elif inference_mode == "mean":
-            # Set latents to mean
             dynamic_node_features_["Participant ID"]["latent"] = dynamic_node_features_[
                 "Participant ID"
             ]["mu"]
@@ -209,13 +180,11 @@ def infer_signatures(d, model, device, inference_mode="mean", generative_mode="s
             raise ValueError(f"Inference mode {generative_mode} not understood")
         node_features_ = (dynamic_node_features_, static_node_features)
 
-        # Compute signatures
         out = decode(d, model, node_features_, **kwargs)
         dist = ZeroInflatedNegativeBinomial(
             mu=out["px_rate"], theta=out["px_r"], zi_logits=out["px_dropout"]
         )
 
-        # Sample from generative model
         if generative_mode == "sample":
             x_pred = dist.sample()
         elif generative_mode == "mean":
@@ -231,13 +200,7 @@ def infer_signatures(d, model, device, inference_mode="mean", generative_mode="s
     return inferred_signatures
 
 
-# =================================
-# Convolution
-# =================================
-
-
 def convolve(adata_v9, participant_id, target_tissue, target_cts, ct_key="Broad cell type"):
-    # Select cells with matching criteria
     obs_mask = (
         (adata_v9.obs["Participant ID"] == participant_id)
         * (adata_v9.obs["Tissue"] == target_tissue)
@@ -246,20 +209,14 @@ def convolve(adata_v9, participant_id, target_tissue, target_cts, ct_key="Broad 
     selected_adata = adata_v9[obs_mask]
 
     unique_cts = list(selected_adata.obs[ct_key].unique())
-    # cell_type_counts = {k: v for k, v in Counter(selected_adata.obs[ct_key]).items()}
+
     cell_type_counts = {ct: (selected_adata.obs[ct_key] == ct).sum() for ct in unique_cts}
     total_cells = sum(list(cell_type_counts.values()))
     cell_type_proportions = {k: v / total_cells for k, v in cell_type_counts.items()}
 
-    # Aggregate
     X_convolved = selected_adata.X.toarray().sum(axis=0)
 
     return X_convolved, cell_type_proportions, total_cells
-
-
-# =================================
-# Transfer learning utilities
-# =================================
 
 
 def ct_predict_v1(self, target_hyperedge_index, node_features, **kwargs):
@@ -277,21 +234,17 @@ def ct_predict_v1(self, target_hyperedge_index, node_features, **kwargs):
     """
     dynamic_node_features, static_node_features = node_features
 
-    # Get sampled latent values
     dynamic_node_features_ = {k: v["latent"] for k, v in dynamic_node_features.items()}
 
-    # Predict metagene values
     node_features_ = {**dynamic_node_features_, **static_node_features}
 
-    # Construct modified node features
     catted_features: list[torch.Tensor] = []
     for k in sorted(node_features_.keys()):
         feat = node_features_[k][target_hyperedge_index[k]]
 
-        if k == "Tissue":  # Modify tissue features with cell-type features
+        if k == "Tissue":
             feat += static_node_features["Cell type"][target_hyperedge_index["Cell type"]]
         elif k == "Cell type":
-            # do nothing, continue to next iteration
             continue
 
         catted_features.append(feat)
@@ -316,13 +269,10 @@ def ct_predict_v2(self, target_hyperedge_index, node_features, **kwargs):
     """
     dynamic_node_features, static_node_features = node_features
 
-    # Get sampled latent values
     dynamic_node_features_ = {k: v["latent"] for k, v in dynamic_node_features.items()}
 
-    # Predict metagene values
     node_features_ = {**dynamic_node_features_, **static_node_features}
 
-    # Construct modified node features
     catted_features: list[torch.Tensor] = []
     for k in sorted(node_features_.keys()):
         feat = node_features_[k][target_hyperedge_index[k]]

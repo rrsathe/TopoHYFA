@@ -19,7 +19,6 @@ def plot_library_sizes(adata_v9, ct_key="Broad cell type"):
     return plt.gca()
 
 
-#### ENRICHMENT BARPLOT
 def enr_barplot(
     df,
     column="Adjusted P-value",
@@ -62,28 +61,22 @@ def enr_barplot(
         """
         for loc, spine in ax.spines.items():
             if loc in spines:
-                # spine.set_position(('outward', 10))  # outward by 10 points
-                # spine.set_smart_bounds(True)
                 continue
             else:
-                spine.set_color("none")  # don't draw spine
+                spine.set_color("none")
 
-        # turn off ticks where there is no spine
         if "left" in spines:
             ax.yaxis.set_ticks_position("left")
         else:
-            # no yaxis ticks
             ax.yaxis.set_ticks([])
 
         if "bottom" in spines:
             ax.xaxis.set_ticks_position("bottom")
         else:
-            # no xaxis ticks
             ax.xaxis.set_ticks([])
 
     colname = column
     if colname in ["Adjusted P-value", "P-value"]:
-        # check if any values in `df[colname]` can't be coerced to floats
         can_be_coerced = df[colname].map(isfloat)
         if np.sum(~can_be_coerced) > 0:
             raise ValueError(f"some value in {colname} could not be typecast to `float`")
@@ -97,7 +90,6 @@ def enr_barplot(
         colname = "logAP"
 
     dd = df.sort_values(by=colname).iloc[-top_term:, :]
-    # create bar plot
 
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)

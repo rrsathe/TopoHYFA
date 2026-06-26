@@ -39,11 +39,6 @@ def x():
     return torch.randint(0, 10, (BATCH, GENES)).float()
 
 
-# ---------------------------------------------------------------------------
-# log_nb_positive
-# ---------------------------------------------------------------------------
-
-
 class TestLogNbPositive:
     def test_output_shape(self, x, mu, theta):
         out = log_nb_positive(x, mu, theta)
@@ -67,14 +62,9 @@ class TestLogNbPositive:
         assert lp_low.item() > lp_high.item()
 
 
-# ---------------------------------------------------------------------------
-# log_zinb_positive
-# ---------------------------------------------------------------------------
-
-
 class TestLogZinbPositive:
     def test_output_shape(self, x, mu, theta):
-        pi = torch.zeros_like(mu)  # logit=0 → 50% dropout
+        pi = torch.zeros_like(mu)
         out = log_zinb_positive(x, mu, theta, pi)
         assert out.shape == (BATCH, GENES)
 
@@ -89,11 +79,6 @@ class TestLogZinbPositive:
         lp_no_zi = log_zinb_positive(x_zero, mu, theta, pi=torch.full_like(mu, -10.0))
         lp_strong_zi = log_zinb_positive(x_zero, mu, theta, pi=torch.full_like(mu, 10.0))
         assert (lp_strong_zi > lp_no_zi).all()
-
-
-# ---------------------------------------------------------------------------
-# NegativeBinomial distribution class
-# ---------------------------------------------------------------------------
 
 
 class TestNegativeBinomial:
@@ -138,11 +123,6 @@ class TestNegativeBinomial:
         assert dist.mu is not None
 
 
-# ---------------------------------------------------------------------------
-# ZeroInflatedNegativeBinomial
-# ---------------------------------------------------------------------------
-
-
 class TestZeroInflatedNegativeBinomial:
     def test_construction(self, mu, theta):
         zi_logits = torch.zeros_like(mu)
@@ -155,7 +135,7 @@ class TestZeroInflatedNegativeBinomial:
 
     def test_mean_leq_nb_mean(self, mu, theta):
         """ZINB mean = (1 - pi) * mu ≤ mu."""
-        zi_logits = torch.zeros_like(mu)  # pi = sigmoid(0) = 0.5
+        zi_logits = torch.zeros_like(mu)
         dist = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=zi_logits)
         nb_dist = NegativeBinomial(mu=mu, theta=theta)
         assert (dist.mean <= nb_dist.mean + 1e-6).all()
@@ -178,11 +158,6 @@ class TestZeroInflatedNegativeBinomial:
         assert samp.shape == (BATCH, GENES)
 
 
-# ---------------------------------------------------------------------------
-# NegativeBinomialMixture
-# ---------------------------------------------------------------------------
-
-
 class TestNegativeBinomialMixture:
     def test_construction(self, mu, theta):
         mixture_logits = torch.zeros_like(mu)
@@ -195,7 +170,7 @@ class TestNegativeBinomialMixture:
         """Mixture mean must lie between the two component means."""
         mu1 = mu * 0.5
         mu2 = mu * 2.0
-        mixture_logits = torch.zeros_like(mu)  # pi = 0.5 → mean ≈ midpoint
+        mixture_logits = torch.zeros_like(mu)
         dist = NegativeBinomialMixture(
             mu1=mu1, mu2=mu2, theta1=theta, mixture_logits=mixture_logits
         )

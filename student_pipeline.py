@@ -53,10 +53,7 @@ def main() -> None:
     env = {**os.environ, "WANDB_MODE": "disabled", "MPLCONFIGDIR": "/tmp/matplotlib"}
     py = sys.executable
 
-    # If user provided gene symbols directly, create a small CSV matching
-    # the project's expected `target_genes` format (one row, gene symbols as columns).
     if getattr(args, "genes", None):
-        # Validate genes against adjacency matrix columns
         try:
             adj_cols = pd.read_csv(args.topology_matrix, index_col=0, nrows=0).columns.to_list()
         except Exception as e:
@@ -64,7 +61,6 @@ def main() -> None:
                 f"Could not read adjacency matrix {args.topology_matrix}: {e}"
             ) from e
 
-        # Filter to only genes present in adjacency matrix
         valid_genes = [g for g in args.genes if g in adj_cols]
         missing_genes = [g for g in args.genes if g not in adj_cols]
 
