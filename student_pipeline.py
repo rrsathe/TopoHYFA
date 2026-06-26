@@ -16,8 +16,9 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 
 def run(cmd: list[str], env: dict[str, str]) -> None:
@@ -53,7 +54,7 @@ def main() -> None:
         try:
             adj_cols = pd.read_csv(args.topology_matrix, index_col=0, nrows=0).columns.to_list()
         except Exception as e:
-            raise FileNotFoundError(f"Could not read adjacency matrix {args.topology_matrix}: {e}")
+            raise FileNotFoundError(f"Could not read adjacency matrix {args.topology_matrix}: {e}") from e
         
         # Filter to only genes present in adjacency matrix
         valid_genes = [g for g in args.genes if g in adj_cols]

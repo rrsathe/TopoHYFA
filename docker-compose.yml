@@ -1,0 +1,49 @@
+services:
+  # Production service - simulates the final container execution
+  app:
+    image: topohyfa:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: topohyfa-app
+    read_only: false # Read-only can be enabled if mounting directories correctly, but some python dependencies require write access to /tmp or /app/.cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      # Suggested mounts:
+      # data/ is mounted read-only to ensure dataset integrity
+      - ./data:/app/data:ro
+      # results/ is mounted read-write to save imputed outputs, baselines, and attribution plots
+      - ./results:/app/results:rw
+      # configs/ is mounted read-only for custom experiment settings
+      - ./configs:/app/configs:ro
+    environment:
+      - WANDB_MODE=disabled # Toggle to "online" to track experiments on weights & biases
+      - PYTHONUNBUFFERED=1
+    command: python student_pipeline.py --lambda-reg 0.1
+
+  # Development service - sets up live-reload/interactive shell environment
+  dev:
+    image: topohyfa:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: topohyfa-dev
+    ports:
+      - "8888:8888" # Forward Jupyter server port
+    volumes:
+      # Mount the whole repository for live-editing and running tests
+      - .:/app
+      # Protect the container's virtual environment from host's python env (crucial for cross-platform)
+      - /app/.venv
+      - /app/.git
+      # Preserve build or tool caches in the container
+      - /app/.ruff_cache
+      - /app/.pytest_cache
+      - /app/.mypy_cache
+    environment:
+      - WANDB_MODE=disabled
+      - PYTHONUNBUFFERED=1
+    command: bash

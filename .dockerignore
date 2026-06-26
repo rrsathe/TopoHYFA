@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# Python caching & build environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.python-version
+
+# Linters, tests, and tool caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.uv/
+
+# IDE configurations
+.vscode/
+.idea/
+
+# Jupyter Notebooks (excluded from production image runtime)
+*.ipynb
+.ipynb_checkpoints/
+
+# Local datasets and output directories
+# (Must be mounted as volumes; never baked into the image)
+data/
+results/
+fig/
+Imputation/output/
+SUBMISSION_AUDIT.md
+skills-lock.json
+*.log
+docker-compose*.yml
+Dockerfile*

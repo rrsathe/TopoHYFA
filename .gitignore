@@ -230,3 +230,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# AI Assistant / Local Tooling
+.gemini/
+.claude/
+.codex/
+.cursor/
+.github/copilot*
+skills-lock.json

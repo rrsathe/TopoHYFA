@@ -110,6 +110,66 @@ Run the full pipeline:
 uv run python student_pipeline.py --lambda-reg 0.1
 ```
 
+---
+
+## Dockerized Execution
+
+We provide a production-grade, containerized setup for reproducible research, testing, and deployment.
+
+### Quick Start with Docker Compose
+
+Ensure you have [Docker](https://www.docker.com/) and Compose installed.
+
+1. **Build the container images**:
+   ```bash
+   docker compose build
+   ```
+
+2. **Run the full imputation pipeline** (automatically mounts local data and results):
+   ```bash
+   docker compose run --rm app
+   ```
+
+### Volume Mounts Configuration
+
+The Docker Compose configuration ([docker-compose.yml](file:///D:/TopoHYFA/docker-compose.yml)) defines three directory mounts:
+- **`data/`** (Read-Only): Mounts local GTEx v8 datasets into the container at `/app/data`.
+- **`results/`** (Read-Write): Exports model checkpoints, downstream predictions, and interpretability figures back to the host.
+- **`configs/`** (Read-Only): Overrides the default model training settings with host configurations.
+
+### Running with Docker CLI (Without Compose)
+
+If you prefer to run using the standard Docker CLI:
+
+```bash
+# Build the production image
+docker build -t topohyfa:latest .
+
+# Run the student pipeline
+docker run --rm \
+  -v "$(pwd)/data:/app/data:ro" \
+  -v "$(pwd)/results:/app/results:rw" \
+  -v "$(pwd)/configs:/app/configs:ro" \
+  topohyfa:latest python student_pipeline.py --lambda-reg 0.1
+```
+
+### Local Development Environment
+
+For active development, running tests, or formatting/linting without local dependency pollution:
+
+```bash
+# Start an interactive shell in the development container (with all dev libraries)
+docker compose run --rm dev
+
+# Run pytest suite inside the development container
+docker compose run --rm dev pytest
+```
+
+> [!TIP]
+> The development Compose service uses anonymous volumes to insulate the container's `.venv/` from the host's `.venv/`. This prevents compatibility conflicts if you are developing on a Windows host and executing in a Linux container.
+
+---
+
 ## Data Preparation
 
 This project uses GTEx v8 data.
