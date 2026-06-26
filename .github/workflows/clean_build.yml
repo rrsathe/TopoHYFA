@@ -29,7 +29,7 @@ jobs:
 
       - name: Clean install dependencies (from scratch)
         run: |
-          uv sync --frozen --locked
+          uv sync --locked
 
       - name: Build Docker image with --no-cache
         run: |

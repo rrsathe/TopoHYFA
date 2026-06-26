@@ -141,7 +141,7 @@ To recreate the development virtual environment on your host:
    ```
 2. **Synchronize Dependencies (frozen lockfile)**:
    ```bash
-   uv sync --frozen --locked
+   uv sync --frozen
    ```
 
 ### Dataset Integrity Verification
