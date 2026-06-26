@@ -7,10 +7,10 @@ ENS=as.numeric(args[2]); #ENS
 
 #nfold=5; ENS=50; #one can change this parameters, nfold is partision for CV and ENS is number of independent runs
 
-dir="/home/Desktop" #example of dir that needs to be given 
-workdir=paste0(dir,"/imputation"); 
+dir="/home/Desktop" #example of dir that needs to be given
+workdir=paste0(dir,"/imputation");
 setwd(workdir)
-#files for predicted expression 
+#files for predicted expression
 folder.GSp=paste0(workdir,"/output/given"); #if user do not have predicted expression of target tissue use the one provided here
 
 source(paste0(workdir,'/code/function.r'));
@@ -53,9 +53,9 @@ tss2=tss; print(tss2);
 
 #load predicted expression
 load(paste0(folder.GSp,"/",fl))
-mat.pred=gene.regress.glmnet[["prediction"]]; 
+mat.pred=gene.regress.glmnet[["prediction"]];
 
-if(ncol(mat.pred)<length(gene)){   
+if(ncol(mat.pred)<length(gene)){
 nn=as.numeric(colnames(mat.pred)); colnames(mat.pred)=gene[nn]; patients=rownames(mat.pred); geneid=nn;
 } else { colnames(mat.pred)=gene; patients=rownames(mat.pred); geneid=seq(length(gene))}
 
@@ -79,8 +79,8 @@ istat[istat==0]=-1; istat[istat==99]=0; istat=as.numeric(istat);
 
 k=which(istat==1|istat==-1)
 temp.p=(t(mat.pred))
-temp.o=as.matrix(gtex.tss2); 
-temp.p=temp.p[,k]; temp.o=temp.o[,k]; istat=istat[k]; blood.oo=as.matrix(gtex.tss1)[,k]; 
+temp.o=as.matrix(gtex.tss2);
+temp.p=temp.p[,k]; temp.o=temp.o[,k]; istat=istat[k]; blood.oo=as.matrix(gtex.tss1)[,k];
 
 #LLR gene
 llrfdr=0.05
@@ -91,14 +91,14 @@ llrgene=which(fdr<=llrfdr & predPCC>0.3);
 #print(c(dis,tss,length(llrgene)))
 
 #perform prediciton if tere is minimum of 20 llr genes
-if(length(llrgene)>20){ 
+if(length(llrgene)>20){
 	temp.p1=temp.p[llrgene,]; temp.o1=temp.o[llrgene,]; blood.oo1=blood.oo[llrgene,];
 
 	ptm <- proc.time()
 	z=prediction_dis_CVfeature(temp.p1,temp.o1,blood.oo1,istat,nfold,ENS,geneid) #using age,race,gender
 	print(proc.time() - ptm)
 	preddisllr1[[dis]][[tss2]][[toString(paste0(llrfdr))]]=z;
-	} else { 
+	} else {
   	preddisllr1[[dis]][[tss2]][[toString(paste0(llrfdr))]]=NA;
   	}
 
@@ -106,7 +106,3 @@ save(preddisllr1,file=paste0(workdir,"/output/given/dispred_ens50.Rdata"))
 
 #} #tissue loop ends
 #} #disease loop ends
-
-
-
-

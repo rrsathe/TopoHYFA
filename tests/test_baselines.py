@@ -15,7 +15,7 @@ import pytest
 from src.baselines import PCA_linear_regression_baseline, impute_knn, impute_simple
 
 
-@pytest.fixture()
+@pytest.fixture
 def regression_data():
     """Synthetic source / target split for regression baseline tests."""
     rng = np.random.default_rng(0)
@@ -28,7 +28,7 @@ def regression_data():
     return x_source, x_target, x_source_test, n_test, n_target_genes
 
 
-@pytest.fixture()
+@pytest.fixture
 def covariate_data(regression_data):
     x_source, x_target, x_source_test, n_test, _ = regression_data
     rng = np.random.default_rng(1)
@@ -71,7 +71,7 @@ class TestPCALinearRegressionBaseline:
 
 
 class TestImputeKnn:
-    @pytest.fixture()
+    @pytest.fixture
     def knn_data(self):
         rng = np.random.default_rng(2)
         N, G = 12, 8
@@ -93,7 +93,7 @@ class TestImputeKnn:
 
 
 class TestImputeSimple:
-    @pytest.fixture()
+    @pytest.fixture
     def simple_data(self):
         rng = np.random.default_rng(3)
         N, T, G = 10, 4, 6

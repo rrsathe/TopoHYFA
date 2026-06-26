@@ -151,6 +151,9 @@ select = [
 
 ignore = ["E501"]  # Line length warning disabled as long lines are manually handled
 
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
 [tool.ruff.lint.isort]
 combine-as-imports = true
 

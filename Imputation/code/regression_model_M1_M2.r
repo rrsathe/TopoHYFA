@@ -12,7 +12,7 @@ require(glmnet)
 if(method=="lasso"){index=1}
 if(method=="ridge"){index=0}
 
-			gtex.train.tss2=as.matrix(temp.tss2); 
+			gtex.train.tss2=as.matrix(temp.tss2);
 			gtex.train.tss1.pc=as.matrix(rbind(temp.tss1[1:nPC1,],temp.snps[1:nPC2,],t(confund.x)));
 
 			eachgene=foreach(itr=1:length(genes),.inorder=T,.combine='c') %do% {
@@ -21,7 +21,7 @@ if(method=="ridge"){index=0}
 				lam=fit.cv$lambda.min
 				fit1 = glmnet(t(gtex.train.tss1.pc),gtex.train.tss2[geneid,], alpha=index, lambda=lam)
 				#pred=predict(fit1,newx=t(gtex.test.tss1.pc))
-				
+
 				temp=list(fit1)
 				return(temp)
 				} #gene loop ends
@@ -38,7 +38,7 @@ require(glmnet)
 if(method=="lasso"){index=1}
 if(method=="ridge"){index=0}
 
-			gtex.train.tss2=as.matrix(temp.tss2); 
+			gtex.train.tss2=as.matrix(temp.tss2);
 			gtex.train.tss1.pc=as.matrix(rbind(temp.tss1[1:nPC,],t(confund.x)));
 
 			eachgene=foreach(itr=1:length(genes),.inorder=T,.combine='c') %do% {
@@ -47,7 +47,7 @@ if(method=="ridge"){index=0}
 				lam=fit.cv$lambda.min
 				fit1 = glmnet(t(gtex.train.tss1.pc),gtex.train.tss2[geneid,], alpha=index, lambda=lam)
 				#pred=predict(fit1,newx=t(gtex.test.tss1.pc))
-				
+
 				temp=list(fit1)
 				return(temp)
 				} #gene loop ends
@@ -60,8 +60,8 @@ return(eachgene)
 
 
 
-dir="/home/Desktop" #example of dir that needs to be given 
-workdir=paste0(dir,"/imputation"); 
+dir="/home/Desktop" #example of dir that needs to be given
+workdir=paste0(dir,"/imputation");
 
 setwd(workdir)
 
@@ -78,7 +78,7 @@ run=toString(args[2]) #category
 #PC1=as.numeric(args[3]); #GE
 #PC2=as.numeric(args[4]); #Sp
 #PC3=as.numeric(args[5]); #Snp
-PC1=10; PC2=20; 
+PC1=10; PC2=20;
 
 #workdir="/Volumes/5TBbackup/UMD2019/project2_scratch_mbasu/gtex_v6/blood_cross_talk/gtex-v6"
 
@@ -88,7 +88,7 @@ PC1=10; PC2=20;
 #source('/Volumes/5TBbackup/UMD2019/project2_scratch_mbasu/gtex_v6/blood_cross_talk/gtex-v6/function_regression.r')
 #source(paste0(workdir,'/code/function.r'));
 
-#load gtex data 
+#load gtex data
 #load("/Volumes/5TBbackup/UMD2019/project2_scratch_mbasu/gtex_v6/data/gtexdata_v6.RData")
 load(paste0(workdir,"/input/gtexdata_v6.RData"));
 
@@ -109,7 +109,7 @@ allgeneid=as.numeric(seq(length(gene)))
 print(tss2);
 comm.patients=patients[which(patients %in% pat.snps)]
 
-#for common individuals seperate the gene expression for tss1 and tss2 
+#for common individuals seperate the gene expression for tss1 and tss2
 j1=c(); j2=c();
 pat.com=c(); #common individuals between Blood (tss1) and target tissue (tss2)
 for (ipat in comm.patients){
@@ -118,8 +118,8 @@ for (ipat in comm.patients){
 	if (length(i1)>0 & length(i2)>0){ j1=append(j1,i1[1]); j2=append(j2,i2[1]); pat.com=append(pat.com,ipat);}}
 nn1=length(j1); nn2=length(j2); it1=matrix(0, 1, nn1); it2=matrix(0, 1, nn2);
 it1[1,]=j1; it2[1,]=j2;
-gtex.tss1=gtex.pc[,c(it1[1,]), with=F]; 
-gtex.tss2=gtex.pc[,c(it2[1,]), with=F]; 
+gtex.tss1=gtex.pc[,c(it1[1,]), with=F];
+gtex.tss2=gtex.pc[,c(it2[1,]), with=F];
 
 
 #PCA for tss1, whole Blood gtex
@@ -173,12 +173,3 @@ print(proc.time() - ptm)
 #------------------------------------------------------------
 }
 }
-
-
-
-
-
-
-
-
-

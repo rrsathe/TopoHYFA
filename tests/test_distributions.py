@@ -24,17 +24,17 @@ from src.distributions import (
 BATCH, GENES = 8, 16
 
 
-@pytest.fixture()
+@pytest.fixture
 def mu():
     return torch.rand(BATCH, GENES) + 0.5
 
 
-@pytest.fixture()
+@pytest.fixture
 def theta():
     return torch.rand(BATCH, GENES) + 0.1
 
 
-@pytest.fixture()
+@pytest.fixture
 def x():
     return torch.randint(0, 10, (BATCH, GENES)).float()
 
