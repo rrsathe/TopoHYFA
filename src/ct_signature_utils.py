@@ -56,8 +56,8 @@ def mask_differentially_expressed_genes(
     for ct in adata_.obs[ct_key].unique():
         pvals = adata_.uns["wilcoxon"]["pvals_adj"][ct]
         mask_selected += pvals < pval_threshold
-    mask_selected = mask_selected >= 1
-    return mask_selected
+    res_mask = mask_selected >= 1
+    return res_mask
 
 
 def select_genes(

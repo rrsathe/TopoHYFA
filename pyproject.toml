@@ -11,9 +11,20 @@ version = "0.1.0"
 description = "Hypergraph Factorization for multi-tissue gene expression imputation"
 readme = "README.md"
 requires-python = ">=3.10,<3.12"
-
+license = { text = "MIT" }
+keywords = ["hypergraph", "matrix-factorization", "gene-expression", "imputation", "bioinformatics", "machine-learning"]
 authors = [
     { name = "HYFA Team" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
@@ -36,6 +47,7 @@ dependencies = [
     "scanpy==1.10.1",
     "biopython",
     "bioservices",
+    "lxml>=6.1.0",
     "gseapy",
     "blitzgsea",
 
@@ -58,9 +70,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-cov",
     "ruff",
-    "mypy",
+    "ty",
     "pre-commit",
+    "deptry",
+    "pip-audit",
 
     # Typing stubs
     "types-networkx",
@@ -71,6 +86,12 @@ dev = [
     "types-tqdm",
     "scikit-learn-stubs",
 ]
+
+[project.urls]
+Homepage = "https://github.com/rrsathe/TopoHYFA"
+Repository = "https://github.com/rrsathe/TopoHYFA"
+Documentation = "https://github.com/rrsathe/TopoHYFA#readme"
+Issues = "https://github.com/rrsathe/TopoHYFA/issues"
 
 [project.scripts]
 train-hyfa = "train_gtex:main"
@@ -116,19 +137,27 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = [
-    "E",
-    "F",
-    "B",
-    "I",
-    "UP",
-    "C4",
-    "SIM",
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "B",    # flake8-bugbear
+    "I",    # isort
+    "UP",   # pyupgrade
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "A",    # flake8-builtins
+    "PT",   # pytest-style rules
+    "PLE",  # Pylint errors
 ]
 
-ignore = ["E501"]
+ignore = ["E501"]  # Line length warning disabled as long lines are manually handled
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
 
 # ---------------------------------------------------------
 # Pytest
@@ -136,37 +165,92 @@ combine-as-imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+pythonpath = ["."]
+addopts = "--strict-markers -v"
+
+# ---------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+skip_empty = true
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
 
 # ---------------------------------------------------------
 # ty
 # ---------------------------------------------------------
 
 [tool.ty.src]
-exclude = ["**/*.ipynb"]
+include = ["src", "tests", "scripts"]
+exclude = ["**/*.ipynb", "src/train_utils.py"]
 
-# ---------------------------------------------------------
-# mypy
-# ---------------------------------------------------------
-
-[tool.mypy]
-python_version = "3.10"
-check_untyped_defs = true
-warn_return_any = true
-warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = [
-    "anndata.*",
-    "scanpy.*",
-    "wandb.*",
-    "torch_scatter.*",
-    "torch_sparse.*",
-    "bioservices.*",
-    "gseapy.*",
-    "blitzgsea.*",
-    "missingpy.*",
-    "supervenn.*",
-    "umap.*",
+[tool.ty.analysis]
+replace-imports-with-any = [
+    "torch.**",
+    "torch_scatter.**",
+    "torch_sparse.**",
+    "anndata.**",
+    "scanpy.**",
+    "supervenn.**",
+    "umap.**",
+    "missingpy.**",
 ]
-ignore_missing_imports = true
+
+[tool.ty.rules]
+redundant-cast = "ignore"
+
+# ---------------------------------------------------------
+# deptry
+# ---------------------------------------------------------
+
+[tool.deptry]
+exclude = [
+    ".venv",
+    "data",
+    "results",
+    "notebooks",
+    "fig",
+    ".git",
+    ".ruff_cache",
+    ".pytest_cache"
+]
+optional_dependencies_dev_groups = ["dev"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "wandb",
+    "supervenn",
+    "umap-learn",
+    "nbformat",
+    "missingpy",
+    "scikit-misc",
+    "torch-sparse",
+    "statsmodels",
+    "anndata",
+    "bioservices",
+    "lxml",
+    "gseapy",
+    "h5py"
+]
+DEP003 = [
+    "rich",
+    "seaborn"
+]

@@ -58,8 +58,9 @@ WORKDIR /app
 # Copy the virtual environment from builder stage
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy configurations and imputation scripts
+# Copy configurations, source code, and imputation scripts
 COPY configs/ ./configs/
+COPY src/ ./src/
 COPY Imputation/ ./Imputation/
 
 # Create data and results mount points and ensure correct ownership later

@@ -68,22 +68,22 @@ class Data:
         """
 
         def increasing_index_map(values, features):
-            map: dict[object, int] = {}
+            value_to_idx: dict[object, int] = {}
             out_indices = np.zeros_like(values, dtype=int)
             n_unique = len(np.unique(values))
             out_features = np.zeros((n_unique, features.shape[-1]))
             for i, v in enumerate(values):
-                if v in map:
-                    out_indices[i] = map[v]
+                if v in value_to_idx:
+                    out_indices[i] = value_to_idx[v]
                 else:
-                    idx = len(map)
+                    idx = len(value_to_idx)
                     out_indices[i] = idx
                     out_features[idx] = features[
                         i
                     ]  # Create features such that they return the appropriate value when
                     # indexed by the dynamic idx
-                    map[v] = idx
-            return out_indices, out_features, map
+                    value_to_idx[v] = idx
+            return out_indices, out_features, value_to_idx
 
         self.node_features = {}
         # TODO: Sanity check -- there cannot be any target nodes that do not belong to source nodes

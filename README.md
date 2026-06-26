@@ -352,6 +352,63 @@ MPLCONFIGDIR=/tmp/matplotlib
 
 ---
 
+## Development
+
+We establish a robust quality assurance and static analysis toolchain to ensure code correctness, safety, and compatibility.
+
+### Installation & Setup
+
+Install the project along with its development and quality assurance dependencies:
+
+```bash
+uv sync --extra dev
+```
+
+This installs the standard scientific dependencies plus code checkers, type analysers, security scanners, and test coverage tools.
+
+### Automated Pre-commit Hooks
+
+We use `pre-commit` to execute checks automatically before each commit. The configuration is stored in [.pre-commit-config.yaml](file:///D:/TopoHYFA/.pre-commit-config.yaml) and executes:
+- Trailing whitespace removal
+- EOF fixing
+- Ruff lint auto-fixes and formatting
+- Static type checking with `ty check` (mypy is intentionally omitted to standardize type checking)
+- Dependency auditing with `deptry`
+
+Register the pre-commit hooks:
+```bash
+uv run pre-commit install
+```
+
+### Unified QA and Task Runner
+
+A unified, cross-platform runner script ([scripts/qa.py](file:///D:/TopoHYFA/scripts/qa.py)) is provided to execute development actions. Run them via `uv run python scripts/qa.py <action>`:
+
+* **Formatting**: `uv run python scripts/qa.py format` (formats Python code via Ruff)
+* **Linting**: `uv run python scripts/qa.py lint` (lints code; use `--fix` to auto-fix safe errors)
+* **Type Checking**: `uv run python scripts/qa.py typecheck` (runs `ty check` for static type checking; mypy is not used)
+* **Testing**: `uv run python scripts/qa.py test` (runs unit tests via pytest)
+* **Coverage**: `uv run python scripts/qa.py cov` (runs pytest and generates detailed coverage data)
+* **Security**: `uv run python scripts/qa.py security` (audits packages via `pip-audit`)
+* **Dependencies**: `uv run python scripts/qa.py deptry` (analyzes imports and usage via `deptry`)
+* **Docker Build**: `uv run python scripts/qa.py docker-build` (builds the production Docker image)
+* **Docker Test**: `uv run python scripts/qa.py docker-test` (verifies Compose config and performs package import smoke test)
+
+### Running the Full QA Pipeline
+
+To run the complete quality assurance suite recursively:
+```bash
+uv run python scripts/qa.py qa
+```
+
+### Interpreting Test Coverage
+
+When running the coverage tool (`cov`), Pytest executes the suite under `pytest-cov`, tracking branch execution paths.
+* **Terminal Summary**: Pytest prints a grid showing coverage percentage per file, indicating exactly which line ranges (in the `Missing` column) were skipped.
+* **HTML Report**: Detailed visualization is compiled to the `htmlcov/` directory. Open `htmlcov/index.html` in your browser to interactively trace executed and missing lines.
+
+---
+
 ## Citation
 
 If you use this repository, please cite HYFA and TEEBoT (see original repo citations).

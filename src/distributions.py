@@ -76,7 +76,7 @@ def log_nb_positive(
     eps: float = 1e-8,
     log_fn: Callable[[torch.Tensor], torch.Tensor] = torch.log,
     lgamma_fn: Callable[[torch.Tensor], torch.Tensor] = torch.lgamma,
-):
+) -> torch.Tensor:
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
 
@@ -404,7 +404,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         zi_logits: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
-
         if zi_logits is None:
             raise ValueError("zi_logits must be specified for ZeroInflatedNegativeBinomial")
 
@@ -510,7 +509,6 @@ class NegativeBinomialMixture(Distribution):
         theta2: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
-
         (
             self.mu1,
             self.theta1,
