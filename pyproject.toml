@@ -252,5 +252,8 @@ DEP002 = [
 ]
 DEP003 = [
     "rich",
-    "seaborn"
+    "seaborn",
+]
+DEP004 = [
+    "pytest",   # correctly used only in tests/
 ]
