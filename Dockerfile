@@ -48,6 +48,9 @@ COPY README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
+# Generate package version details file
+RUN uv pip freeze > package_versions.txt
+
 # ==============================================================================
 # Stage 3: Production runtime image
 # ==============================================================================
@@ -55,8 +58,11 @@ FROM base AS production
 
 WORKDIR /app
 
-# Copy the virtual environment from builder stage
+# Copy the virtual environment and package version details from builder stage
 COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/package_versions.txt /app/package_versions.txt
+COPY --from=builder /app/pyproject.toml /app/pyproject.toml
+COPY --from=builder /app/uv.lock /app/uv.lock
 
 # Copy configurations, source code, and imputation scripts
 COPY configs/ ./configs/
