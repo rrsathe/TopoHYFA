@@ -92,25 +92,90 @@ uv sync
 
 ## Reproducibility
 
-This repository targets reproducible, evaluator-friendly execution:
+This project is built for **archival scientific reproducibility**. Any researcher can rebuild the exact execution environment and obtain identical results, years into the future.
 
-- Uses `uv` for deterministic dependency management and `uv.lock` for exact resolutions.
-- Targets CPU-compatible PyTorch wheels for portable execution; GPU is optional if you install CUDA-compatible PyTorch separately.
+### Software Environment Specification
 
-Reproduce the environment:
+- **Host Operating System:** Linux (Ubuntu 22.04 LTS tested) or Windows 10/11 (PowerShell/WSL2)
+- **Architecture:** `x86_64` (AMD64)
+- **Python Version:** `3.10.16` (pinned explicitly via `requires-python = "==3.10.16"` in `pyproject.toml` and `.python-version`)
+- **uv Installer Version:** `0.11.24` (reproducible dependency sync manager)
+- **Docker Engine Version:** `20.10+` / `24.0+`
+- **Docker Base Image:** `python:3.10.16-slim-bookworm@sha256:f9fd9a142c9e3bc54d906053b756eb7e7e386ee1cf784d82c251cf640c502512`
+- **System Locale & Timezone:** `TZ=UTC`, `LANG=C.UTF-8`, `LC_ALL=C.UTF-8`
+
+### Dependency Pinning Strategy
+
+Every package is locked using `uv.lock`. Major pinned dependencies in `pyproject.toml` include:
+- `torch==2.3.0`
+- `numpy==1.26.4`
+- `scipy==1.13.1`
+- `pandas==2.2.2`
+- `scikit-learn==1.5.0`
+- `statsmodels==0.14.6`
+- `anndata==0.11.4`
+- `scanpy==1.10.1`
+- `biopython==1.87`
+- `bioservices==1.11.2`
+- `lxml==6.1.1`
+- `gseapy==1.2.1`
+- `blitzgsea` (pinned to Git commit `de42814395a6cde8404f164b5bff7adbf5df6bbc`)
+- `matplotlib==3.9.0`
+- `supervenn==0.5.0`
+- `umap-learn==0.5.7`
+- `h5py==3.16.0`
+- `missingpy==0.2.0`
+- `nbformat==5.10.4`
+- `networkx==3.4.2`
+- `pyyaml==6.0.3`
+- `tqdm==4.67.3`
+- `wandb==0.26.1`
+
+### Rebuilding the Environment from Scratch
+
+To recreate the development virtual environment on your host:
+
+1. **Install `uv`**:
+   ```bash
+   pip install uv==0.11.24
+   ```
+2. **Synchronize Dependencies (frozen lockfile)**:
+   ```bash
+   uv sync --frozen --locked
+   ```
+
+### Dataset Integrity Verification
+
+We enforce strict validation of external data inputs. To verify that downloaded files are intact and match expected metadata, run:
 
 ```bash
-pip install uv
-uv sync
+uv run python scripts/verify_datasets.py
 ```
 
-Run the full pipeline:
+**Dataset Specifications:**
+
+| Filename | Source | Expected Size (Bytes) | Expected MD5 Hash | Expected SHA256 Hash |
+|---|---|---|---|---|
+| `GTEX_data.csv.zip` | [Figshare v22650763](https://figshare.com/articles/dataset/Processed_GTEx_v8_data/22650763) | 431,765,777 | `a50db13daf93498136fae21d1302c000` | N/A (MD5 Verified) |
+| `GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt` | [GTEx Portal v8](https://gtexportal.org/home/datasets) | 20,271 | `90297fc31512902f4459c757180fe575` | `821bdaff39e7a9a1d166919b3c786724c2b79c2861aeb936a2537a0f59b066f7` |
+
+### Verifying Docker Image Digest
+
+To confirm that your local container matches the audited production image digest, run:
 
 ```bash
-uv run python student_pipeline.py --lambda-reg 0.1
+docker inspect --format='{{index .RepoDigests 0}}' topohyfa:latest
 ```
+
+### Deterministic ML Execution
+
+Randomness is audited and strictly controlled:
+- A unified seeding function `seed_everything` (located in `src/train_utils.py`) fixes random seeds for Python's `random`, `numpy`, and PyTorch (`torch.manual_seed`, `torch.cuda.manual_seed_all`).
+- Deterministic PyTorch algorithms are enforced (`torch.backends.cudnn.deterministic = True`, `torch.backends.cudnn.benchmark = False`, and `torch.use_deterministic_algorithms(True, warn_only=True)`).
+- *Nondeterministic Operation Warning:* Note that certain PyTorch operations (like atomic additions during scatter/gather operations in PyTorch Geometric on GPU) can be non-deterministic. In such cases, a warning is printed, but seeds are kept identical.
 
 ---
+
 
 ## Dockerized Execution
 
@@ -188,6 +253,12 @@ Place them inside:
 
 ```
 data/
+```
+
+Verify the downloaded datasets' integrity:
+
+```bash
+uv run python scripts/verify_datasets.py
 ```
 
 ---

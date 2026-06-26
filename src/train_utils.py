@@ -2,11 +2,15 @@
 Train/eval loops
 """
 
+import contextlib
+import os
+import random
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
+import numpy as np
 import torch
 import wandb
 from scipy.stats import pearsonr
@@ -21,6 +25,21 @@ from src.losses import (
     get_reconstruction_loss,
     graph_laplacian_regularization,
 )
+
+
+def seed_everything(seed=0):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    if hasattr(torch, "use_deterministic_algorithms"):
+        with contextlib.suppress(Exception):
+            torch.use_deterministic_algorithms(True, warn_only=True)
+
 
 INTERPRETABILITY_OUTPUT_KEYS = {
     "gene_attribution_available",

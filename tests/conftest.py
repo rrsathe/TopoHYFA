@@ -6,12 +6,13 @@ import numpy as np
 import pytest
 import torch
 
+from src.train_utils import seed_everything
+
 
 @pytest.fixture(autouse=True)
 def _seed():
     """Fix all RNG seeds for reproducible numerical tests."""
-    torch.manual_seed(0)
-    np.random.seed(0)
+    seed_everything(0)
 
 
 BATCH = 8

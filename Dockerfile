@@ -1,10 +1,10 @@
 # ==============================================================================
 # Stage 1: Base image
 # ==============================================================================
-# Pinned version of Python 3.10 slim bookworm with digest for byte-for-byte reproducibility
-FROM python:3.10.14-slim-bookworm@sha256:2407c61b1a18067393fecd8a22cf6fceede893b6aaca817bf9fbfe65e33614a3 AS base
+# Pinned version of Python 3.10.16 slim bookworm with digest for byte-for-byte reproducibility
+FROM python:3.10.16-slim-bookworm@sha256:f9fd9a142c9e3bc54d906053b756eb7e7e386ee1cf784d82c251cf640c502512 AS base
 
-# Prevents Python from writing .pyc files and enables unbuffered logging
+# Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/app"
@@ -12,6 +12,11 @@ ENV PYTHONPATH="/app"
 # Disable pip caches
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
+
+# Timezone and locale environment settings for deterministic execution
+ENV TZ=UTC
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # Install runtime OpenMP dependency required by scientific packages
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,0 +1,40 @@
+name: Clean Build Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  clean-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (Clean checkout)
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Set up Python 3.10.16 (No caching)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.16"
+
+      - name: Install uv (No caching)
+        uses: actions/setup-uv@v5
+        with:
+          version: "0.11.24"
+          enable-cache: false
+
+      - name: Clean install dependencies (from scratch)
+        run: |
+          uv sync --frozen --locked
+
+      - name: Build Docker image with --no-cache
+        run: |
+          docker build --no-cache -t topohyfa:latest .
+
+      - name: Execute Container Smoke Test
+        run: |
+          docker run --rm topohyfa:latest python -c "from src.data import Data; print('[OK] Clean build smoke test verified')"

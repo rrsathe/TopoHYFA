@@ -17,9 +17,9 @@ from src.data_utils import load_adjacency_matrix, map_to_ids
 from src.dataset import HypergraphDataset
 from src.eval_utils import pearson_correlation_score
 from src.hnn import HypergraphNeuralNet
-from src.train_utils import train
+from src.train_utils import seed_everything, train
 
-np.random.seed(0)
+seed_everything(0)
 DEFAULT_NUM_WORKERS = 4
 
 GTEX_FILE = "data/GTEX_data.csv"

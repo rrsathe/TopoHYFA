@@ -1,12 +1,18 @@
 # ==============================================================================
 # Development Dockerfile for TopoHYFA
 # ==============================================================================
-FROM python:3.10-slim
+# Pinned version of Python 3.10.16 slim bookworm with digest for byte-for-byte reproducibility
+FROM python:3.10.16-slim-bookworm@sha256:f9fd9a142c9e3bc54d906053b756eb7e7e386ee1cf784d82c251cf640c502512
 
 # Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/app"
+
+# Timezone and locale environment settings for deterministic execution
+ENV TZ=UTC
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # Install system dependencies (build tools for compilation, git for uv/git deps, libgomp1 for OpenMP)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv from the official image
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.24 /uv /uvx /bin/
 
 # Set uv configuration variables
 ENV UV_COMPILE_BYTECODE=1

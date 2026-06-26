@@ -16,12 +16,14 @@ from sklearn.metrics import mean_squared_error
 from torch.utils.data import DataLoader
 
 from src.data import Data
-from src.train_utils import forward, save_interpretability_batch
+from src.train_utils import forward, save_interpretability_batch, seed_everything
 from train_gtex import (
     GTEx_v8_normalised_adata,
     HypergraphDataset,
     HypergraphNeuralNet,
 )
+
+seed_everything(0)
 
 GTEX_FILE = "data/GTEX_data.csv"
 MODEL_PATH = "data/model.pth"

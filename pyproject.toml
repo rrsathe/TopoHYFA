@@ -10,7 +10,7 @@ name = "topohyfa"
 version = "0.1.0"
 description = "Hypergraph Factorization for multi-tissue gene expression imputation"
 readme = "README.md"
-requires-python = ">=3.10,<3.12"
+requires-python = "==3.10.16"
 license = { text = "MIT" }
 keywords = ["hypergraph", "matrix-factorization", "gene-expression", "imputation", "bioinformatics", "machine-learning"]
 authors = [
@@ -40,51 +40,51 @@ dependencies = [
     "scipy==1.13.1",
     "pandas==2.2.2",
     "scikit-learn==1.5.0",
-    "statsmodels",
+    "statsmodels==0.14.6",
 
     # Single-cell / bioinformatics
     "anndata==0.11.4",
     "scanpy==1.10.1",
-    "biopython",
-    "bioservices",
-    "lxml>=6.1.0",
-    "gseapy",
+    "biopython==1.87",
+    "bioservices==1.11.2",
+    "lxml==6.1.1",
+    "gseapy==1.2.1",
     "blitzgsea",
 
     # Visualization
     "matplotlib==3.9.0",
-    "supervenn",
+    "supervenn==0.5.0",
     "umap-learn==0.5.7",
 
     # Utilities
-    "h5py",
-    "missingpy",
-    "nbformat",
+    "h5py==3.16.0",
+    "missingpy==0.2.0",
+    "nbformat==5.10.4",
     "networkx==3.4.2",
-    "pyyaml",
-    "scikit-misc",
-    "tqdm",
-    "wandb",
+    "pyyaml==6.0.3",
+    "scikit-misc==0.5.2",
+    "tqdm==4.67.3",
+    "wandb==0.26.1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "pytest",
-    "pytest-cov",
-    "ruff",
-    "ty",
-    "pre-commit",
-    "deptry",
-    "pip-audit",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "ruff==0.15.12",
+    "ty==0.0.54",
+    "pre-commit==4.6.0",
+    "deptry==0.25.1",
+    "pip-audit==2.10.1",
 
     # Typing stubs
-    "types-networkx",
-    "types-PyYAML",
-    "pandas-stubs",
-    "types-seaborn",
-    "scipy-stubs",
-    "types-tqdm",
-    "scikit-learn-stubs",
+    "types-networkx==3.6.1.20260408",
+    "types-pyyaml==6.0.12.20260408",
+    "pandas-stubs==2.3.3.260113",
+    "types-seaborn==0.13.2.20260408",
+    "scipy-stubs==1.15.3.0",
+    "types-tqdm==4.67.3.20260408",
+    "scikit-learn-stubs==0.0.3",
 ]
 
 [project.urls]
@@ -116,7 +116,7 @@ find-links = [
 ]
 
 [tool.uv.sources]
-blitzgsea = { git = "https://github.com/MaayanLab/blitzgsea.git" }
+blitzgsea = { git = "https://github.com/MaayanLab/blitzgsea.git", rev = "de42814395a6cde8404f164b5bff7adbf5df6bbc" }
 
 torch = [
     { index = "pytorch-cpu" }
