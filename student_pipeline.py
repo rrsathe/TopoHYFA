@@ -31,11 +31,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-train", action="store_true", help="Reuse existing data/model.pth")
     parser.add_argument("--lambda-reg", type=float, default=0.0)
     parser.add_argument("--num-workers", type=int, default=0)
-    parser.add_argument("--target-genes", default="Imputation/output/HYFA_export/target_genes_15.csv")
     parser.add_argument(
-        "--genes", nargs="+", help="List of gene symbols to evaluate (overrides --target-genes)",
+        "--target-genes", default="Imputation/output/HYFA_export/target_genes_15.csv"
     )
-    parser.add_argument("--topology-matrix", default="Imputation/output/HYFA_export/adjacency_matrix.csv")
+    parser.add_argument(
+        "--genes",
+        nargs="+",
+        help="List of gene symbols to evaluate (overrides --target-genes)",
+    )
+    parser.add_argument(
+        "--topology-matrix", default="Imputation/output/HYFA_export/adjacency_matrix.csv"
+    )
     parser.add_argument("--confounders", default="Imputation/output/HYFA_export/confounders.csv")
     parser.add_argument("--interpretability-dir", default="results/interpretability")
     parser.add_argument("--figures-dir", default="results/interpretability_figures")
@@ -54,23 +60,25 @@ def main() -> None:
         try:
             adj_cols = pd.read_csv(args.topology_matrix, index_col=0, nrows=0).columns.to_list()
         except Exception as e:
-            raise FileNotFoundError(f"Could not read adjacency matrix {args.topology_matrix}: {e}") from e
-        
+            raise FileNotFoundError(
+                f"Could not read adjacency matrix {args.topology_matrix}: {e}"
+            ) from e
+
         # Filter to only genes present in adjacency matrix
         valid_genes = [g for g in args.genes if g in adj_cols]
         missing_genes = [g for g in args.genes if g not in adj_cols]
-        
+
         if not valid_genes:
             raise ValueError(
                 f"None of the requested genes {args.genes} found in adjacency matrix. "
                 f"Available genes: {adj_cols}"
             )
-        
+
         if missing_genes:
             print(f"⚠️  Skipping genes not in adjacency matrix: {missing_genes}")
-        
+
         print(f"✓ Using genes from adjacency matrix: {valid_genes}")
-        
+
         cli_path = Path("Imputation/output/HYFA_export/target_genes_cli.csv")
         cli_path.parent.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame([np.zeros(len(valid_genes))], columns=valid_genes)

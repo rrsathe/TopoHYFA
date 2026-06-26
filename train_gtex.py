@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import torch
+import wandb
 from torch.utils.data import DataLoader
 
-import wandb
 from src.data import Data
 from src.data_utils import load_adjacency_matrix, map_to_ids
 from src.dataset import HypergraphDataset
@@ -66,19 +66,19 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
     adata.obs["Participant ID"] = sampl_ids
     adata.obs["Tissue"] = tissues
 
-    participant_series = cast(pd.Series, adata.obs["Participant ID"])
+    participant_series = adata.obs["Participant ID"]
 
     # Delete participants with only one measured tissue
     adata = adata[participant_series.duplicated(keep=False)]
 
     # Static keys
-    tissue_series = cast(pd.Series, adata.obs["Tissue"])
+    tissue_series = adata.obs["Tissue"]
     adata.obs["Tissue_idx"], tissue_dict = map_to_ids(tissue_series.to_numpy())
     adata.uns["Tissue_dict"] = tissue_dict
     # del adata.obs['Tissue']
 
     # Dynamic keys
-    participant_series = cast(pd.Series, adata.obs["Participant ID"])
+    participant_series = adata.obs["Participant ID"]
     adata.obs["Participant ID_dyn"] = participant_series
 
     # Populate participant features
@@ -88,8 +88,8 @@ def GTEx_v8_normalised_adata(file=GTEX_FILE):
     sex_values = metadata_df.loc[participant_series.to_numpy(), "SEX"].to_numpy()
     adata.obs["Sex"] = np.asarray(sex_values, dtype=float) - 1
 
-    age_series = cast(pd.Series, adata.obs["Age"])
-    sex_series = cast(pd.Series, adata.obs["Sex"])
+    age_series = adata.obs["Age"]
+    sex_series = adata.obs["Sex"]
     donor_age = age_series.to_numpy(dtype=float) / 100
     donor_sex, donor_sex_dict = map_to_ids(sex_series.to_numpy())
     adata.obsm["Participant ID_feat"] = np.stack((donor_age, donor_sex), axis=-1)

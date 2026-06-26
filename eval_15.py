@@ -11,10 +11,10 @@ from typing import Any, cast
 import numpy as np
 import pandas as pd
 import torch
+import wandb
 from sklearn.metrics import mean_squared_error
 from torch.utils.data import DataLoader
 
-import wandb
 from src.data import Data
 from src.train_utils import forward, save_interpretability_batch
 from train_gtex import (

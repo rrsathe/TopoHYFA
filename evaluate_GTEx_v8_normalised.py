@@ -25,6 +25,7 @@ import pandas as pd
 import seaborn as sns
 import torch
 import umap
+import wandb
 from Bio.KEGG import REST
 from matplotlib.ticker import MultipleLocator
 from sklearn.manifold import TSNE
@@ -32,7 +33,6 @@ from sklearn.metrics import mean_squared_error
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import wandb
 from src.baselines import PCA_linear_regression_baseline, impute_knn
 from src.data import Data
 from src.data_utils import split_patient_train_test

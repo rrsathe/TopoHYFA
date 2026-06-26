@@ -20,9 +20,9 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+import wandb
 from torch.utils.data import DataLoader
 
-import wandb
 from src.data import Data
 from src.hnn import HypergraphNeuralNet
 from src.train_utils import forward

@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import Any, cast
 
 import torch
+import wandb
 from scipy.stats import pearsonr
 from torch.cuda.amp import GradScaler, autocast
 from torch.distributions import Normal, kl_divergence as kl
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import wandb
 from src.data_utils import densify, sparsify
 from src.losses import (
     compute_laplacian,
@@ -99,9 +99,7 @@ def _compute_gene_attribution(
 
     metagene_features = dense_metagenes.reshape(-1, meta_g, d_edge_attr)
     gene_weights = weights.reshape(weights.shape[0], meta_g, d_edge_attr)
-    gene_metagene_attribution = torch.einsum(
-        "nmd,gmd->ngm", metagene_features, gene_weights
-    )
+    gene_metagene_attribution = torch.einsum("nmd,gmd->ngm", metagene_features, gene_weights)
 
     return {
         "gene_attribution_available": True,
@@ -146,9 +144,7 @@ def _build_prediction_trace(
         "target_node_indices": {
             k: v.detach().cpu() for k, v in getattr(data, "target", {}).items()
         },
-        "target_hyperedge_index": {
-            k: v.detach().cpu() for k, v in target_hyperedge_index.items()
-        },
+        "target_hyperedge_index": {k: v.detach().cpu() for k, v in target_hyperedge_index.items()},
         "dense_metagene_shape": tuple(dense_metagenes.shape),
     }
     if torch.is_tensor(out.get("px_rate")):
