@@ -1,12 +1,17 @@
 # ==============================================================================
 # Stage 1: Base image with shared configuration
 # ==============================================================================
-FROM python:3.10-slim AS base
+# Pinned version of Python 3.10 slim bookworm for byte-for-byte reproducibility
+FROM python:3.10.14-slim-bookworm AS base
 
 # Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/app"
+
+# Pip-related environment variables
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_NO_CACHE_DIR=1
 
 # Install runtime system dependencies (e.g., libgomp for openmp in PyTorch/scipy/numpy)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -56,28 +61,47 @@ RUN uv pip freeze > package_versions.txt
 # ==============================================================================
 FROM base AS production
 
+ARG GIT_COMMIT=""
+ARG BUILD_DATE=""
+
+LABEL org.opencontainers.image.title="TopoHYFA" \
+      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.authors="HYFA Team" \
+      org.opencontainers.image.source="https://github.com/rrsathe/TopoHYFA" \
+      org.opencontainers.image.description="Topology-aware Hypergraph Foundation Model for multi-tissue gene expression imputation" \
+      git_commit=$GIT_COMMIT \
+      build_date=$BUILD_DATE
+
 WORKDIR /app
 
+# Create a non-root system user and group first to allow COPY --chown ownership
+RUN groupadd -g 10001 appgroup && \
+    useradd -r -u 10001 -g appgroup -d /app -s /sbin/nologin appuser
+
 # Copy the virtual environment and package version details from builder stage
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/package_versions.txt /app/package_versions.txt
-COPY --from=builder /app/pyproject.toml /app/pyproject.toml
-COPY --from=builder /app/uv.lock /app/uv.lock
+COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appgroup /app/package_versions.txt /app/package_versions.txt
+COPY --from=builder --chown=appuser:appgroup /app/pyproject.toml /app/pyproject.toml
+COPY --from=builder --chown=appuser:appgroup /app/uv.lock /app/uv.lock
 
 # Copy configurations, source code, and imputation scripts
-COPY configs/ ./configs/
-COPY src/ ./src/
-COPY Imputation/ ./Imputation/
+COPY --chown=appuser:appgroup configs/ ./configs/
+COPY --chown=appuser:appgroup src/ ./src/
+COPY --chown=appuser:appgroup Imputation/ ./Imputation/
 
-# Create data and results mount points and ensure correct ownership later
-RUN mkdir -p data results
+# Create data and results mount points (these are mounted as volumes)
+RUN mkdir -p data results && chown -R appuser:appgroup data results
+
+# Declare volumes for datasets and outputs
+VOLUME ["/app/data", "/app/results"]
 
 # Copy the core script runner entrypoint
-COPY entrypoint.sh ./
+COPY --chown=appuser:appgroup entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 # Copy all research scripts in the root directory
-COPY train_gtex.py \
+COPY --chown=appuser:appgroup \
+     train_gtex.py \
      infer.py \
      student_pipeline.py \
      run_disease_prediction.py \
@@ -92,18 +116,15 @@ COPY train_gtex.py \
      patch_evaluate_2.py \
      ./
 
-# Create a non-root system user and group (avoid running container processes as root)
-RUN groupadd -g 10001 appgroup && \
-    useradd -r -u 10001 -g appgroup -d /app -s /sbin/nologin appuser
-
-# Set permissions for the application folder and volumes
-RUN chown -R appuser:appgroup /app
-
 # Use the non-root user
 USER appuser
 
 # Set PATH to use the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
+
+# Run a lightweight health check to ensure container readiness
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "from src.data import Data" || exit 1
 
 # Define default entrypoint and command
 ENTRYPOINT ["/app/entrypoint.sh"]

@@ -36,3 +36,10 @@ skills-lock.json
 *.log
 docker-compose*.yml
 Dockerfile*
+
+# Additional build artifacts and test coverage
+.coverage
+htmlcov/
+.cache/
+dist/
+build/
