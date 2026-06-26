@@ -1,47 +1,46 @@
 # ==============================================================================
-# Stage 1: Base image with shared configuration
+# Stage 1: Base image
 # ==============================================================================
-# Pinned version of Python 3.10 slim bookworm for byte-for-byte reproducibility
-FROM python:3.10.14-slim-bookworm AS base
+# Pinned version of Python 3.10 slim bookworm with digest for byte-for-byte reproducibility
+FROM python:3.10.14-slim-bookworm@sha256:2407c61b1a18067393fecd8a22cf6fceede893b6aaca817bf9fbfe65e33614a3 AS base
 
-# Prevent Python from writing .pyc files and enable unbuffered logging
+# Prevents Python from writing .pyc files and enables unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/app"
 
-# Pip-related environment variables
+# Disable pip caches
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
 
-# Install runtime system dependencies (e.g., libgomp for openmp in PyTorch/scipy/numpy)
+# Install runtime OpenMP dependency required by scientific packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # ==============================================================================
-# Stage 2: Builder image (installing dependencies)
+# Stage 2: Builder
 # ==============================================================================
 FROM base AS builder
 
-# Install uv from the official image
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Pinned version of uv installer corresponding to verified local setup
+COPY --from=ghcr.io/astral-sh/uv:0.11.24 /uv /uvx /bin/
 
-# Set uv configuration variables
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Install build dependencies (git is required for blitzgsea; build-essential is for C-extensions)
+# Install compilation toolchain and git
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy configuration and lockfiles for dependency resolution
+# Copy configuration and lockfiles
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies using build cache mount to speed up subsequent builds
+# Install external dependencies using cache mount
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
@@ -49,15 +48,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY src/ ./src/
 COPY README.md ./
 
-# Sync to install the local topohyfa package in the virtual environment
+# Sync to install local topohyfa package
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Generate package version details file
+# Generate package versions snapshot
 RUN uv pip freeze > package_versions.txt
 
 # ==============================================================================
-# Stage 3: Production runtime image
+# Stage 3: Production runtime
 # ==============================================================================
 FROM base AS production
 
@@ -74,32 +73,32 @@ LABEL org.opencontainers.image.title="TopoHYFA" \
 
 WORKDIR /app
 
-# Create a non-root system user and group first to allow COPY --chown ownership
+# Create non-root system user and group
 RUN groupadd -g 10001 appgroup && \
     useradd -r -u 10001 -g appgroup -d /app -s /sbin/nologin appuser
 
-# Copy the virtual environment and package version details from builder stage
+# Copy virtual env and version details with proper ownership
 COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appgroup /app/package_versions.txt /app/package_versions.txt
 COPY --from=builder --chown=appuser:appgroup /app/pyproject.toml /app/pyproject.toml
 COPY --from=builder --chown=appuser:appgroup /app/uv.lock /app/uv.lock
 
-# Copy configurations, source code, and imputation scripts
+# Copy configuration, source code, and R scripts
 COPY --chown=appuser:appgroup configs/ ./configs/
 COPY --chown=appuser:appgroup src/ ./src/
 COPY --chown=appuser:appgroup Imputation/ ./Imputation/
 
-# Create data and results mount points (these are mounted as volumes)
+# Create runtime mount points
 RUN mkdir -p data results && chown -R appuser:appgroup data results
 
 # Declare volumes for datasets and outputs
 VOLUME ["/app/data", "/app/results"]
 
-# Copy the core script runner entrypoint
+# Copy runner entrypoint
 COPY --chown=appuser:appgroup entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
-# Copy all research scripts in the root directory
+# Copy root research scripts
 COPY --chown=appuser:appgroup \
      train_gtex.py \
      infer.py \
@@ -116,16 +115,15 @@ COPY --chown=appuser:appgroup \
      patch_evaluate_2.py \
      ./
 
-# Use the non-root user
+# Run as non-root user
 USER appuser
 
-# Set PATH to use the virtual environment
+# Use virtual environment path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Run a lightweight health check to ensure container readiness
+# Healthcheck validating package imports
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "from src.data import Data" || exit 1
 
-# Define default entrypoint and command
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "student_pipeline.py"]

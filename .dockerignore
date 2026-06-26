@@ -43,3 +43,6 @@ htmlcov/
 .cache/
 dist/
 build/
+.github/
+docs/
+tests/
