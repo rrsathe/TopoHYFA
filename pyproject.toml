@@ -7,10 +7,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "topohyfa"
-version = "0.1.0"
-description = "Hypergraph Factorization for multi-tissue gene expression imputation"
+version = "0.2.0"
+description = "Topology-aware hypergraph factorization for multi-tissue gene expression imputation"
 readme = "README.md"
-requires-python = "==3.10.16"
+requires-python = ">=3.10,<3.12"
 license = { text = "MIT" }
 keywords = ["hypergraph", "matrix-factorization", "gene-expression", "imputation", "bioinformatics", "machine-learning"]
 authors = [
@@ -134,6 +134,18 @@ explicit = true
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = [
+    "extracted_hd",
+    "hd_case_study/01b_mine_metadata.py",
+    "hd_case_study/02a_gtex_cortex_recoverability.py",
+    "hd_case_study/02b_blood_labels.py",
+    "hd_case_study/05_grn_lcc.py",
+    "hd_case_study/06a_grn_model_cortex.py",
+    "hd_case_study/06b_classify.py",
+    "hd_case_study/06b_impute_ba9_from_blood.py",
+    "hd_case_study/06c_gene_coverage.py",
+    "hd_case_study/06d_imputation_diagnostic.py",
+]
 
 [tool.ruff.lint]
 select = [

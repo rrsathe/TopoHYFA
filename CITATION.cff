@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use TopoHYFA or the Huntington's disease case study, please cite this software."
+title: "TopoHYFA: Topology-Aware Hypergraph Factorization for Multi-Tissue Gene Expression Imputation"
+version: 0.1.0
+date-released: 2026-07-24
+license: MIT
+repository-code: "https://github.com/rrsathe/TopoHYFA"
+abstract: "TopoHYFA extends HYFA with topology-aware regularization and includes a Huntington's disease case study demonstrating topology-dependent effects in imputed BA9 cortex gene-expression analysis."
+authors:
+  - name: "TopoHYFA contributors"
+preferred-citation:
+  type: conference-paper
+  title: "Topology-Dependent Effect Demonstrated in Huntington's Disease with TopoHYFA"
+  conference:
+    name: "IEEE CMES 2027 - International Conference on Medical Engineering and Science"
+  year: 2027
+  notes: "Submitted to IEEE Guwahati Subsection CMES 2027."

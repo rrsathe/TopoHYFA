@@ -1,0 +1,93 @@
+#!/usr/bin/env Rscript
+## =============================================================================
+## 03_deg_tissue.R   [run order: 03]
+## Differential expression on HD BA9 cortex (SRP051844): HD vs Control, limma-voom.
+## Input : prep/hd_cortex_ba9_counts_by_symbol.csv  +  prep/hd_cortex_ba9_pheno.csv   (from 02)
+## Output: deg/  full ranked table, significant subset, and a plain symbol list.
+##         deg_cortex_symbols.txt is the gene list to paste into netcontrol (-> GRN).
+## RECORD: if it errors, fix and re-run.
+## =============================================================================
+
+options(stringsAsFactors = FALSE)
+
+## ---- thresholds (change here if needed) ----
+ADJ_P   <- 0.05
+LFC_MIN <- 1.0
+PREFIX  <- "hd_cortex_ba9"
+
+## ---- project root + I/O ----
+find_root <- function() {
+  if (requireNamespace("rstudioapi", quietly = TRUE)) {
+    p <- tryCatch(rstudioapi::getSourceEditorContext()$path, error = function(e) "")
+    if (!is.null(p) && nzchar(p)) return(normalizePath(dirname(p), winslash = "/"))
+  }
+  a <- commandArgs(trailingOnly = FALSE); f <- sub("^--file=", "", a[grep("^--file=", a)])
+  if (length(f) && nzchar(f[1])) return(normalizePath(dirname(f[1]), winslash = "/"))
+  normalizePath(getwd(), winslash = "/")
+}
+ROOT <- find_root()
+PREP <- file.path(ROOT, "prep"); OUT <- file.path(ROOT, "deg")
+dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
+
+counts_file <- file.path(PREP, paste0(PREFIX, "_counts_by_symbol.csv"))
+pheno_file  <- file.path(PREP, paste0(PREFIX, "_pheno.csv"))
+for (f in c(counts_file, pheno_file)) if (!file.exists(f)) stop("missing input (run 02 first): ", f)
+
+## ---- packages ----
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager", repos = "https://cloud.r-project.org")
+for (pkg in c("edgeR","limma"))
+  if (!requireNamespace(pkg, quietly = TRUE)) BiocManager::install(pkg, update = FALSE, ask = FALSE)
+suppressPackageStartupMessages({ library(edgeR); library(limma) })
+
+## ---- load ----
+cnt <- read.csv(counts_file, check.names = FALSE)
+genes <- cnt[[1]]; mat <- as.matrix(cnt[,-1, drop=FALSE]); rownames(mat) <- genes
+storage.mode(mat) <- "integer"
+
+ph <- read.csv(pheno_file, check.names = FALSE)
+ph <- ph[match(colnames(mat), ph$sample_id), , drop=FALSE]
+stopifnot(all(ph$sample_id == colnames(mat)))
+
+## keep only HD + Control (drop NA / premanifest / other)
+keep_s <- ph$condition %in% c("HD","Control")
+mat <- mat[, keep_s, drop=FALSE]; ph <- ph[keep_s, , drop=FALSE]
+grp <- factor(ph$condition, levels = c("Control","HD"))
+message("samples used: Control=", sum(grp=="Control"), "  HD=", sum(grp=="HD"))
+if (any(table(grp) < 2)) stop("need >=2 samples per group; check hd_cortex_ba9_pheno.csv labels")
+
+## ---- limma-voom DEG ----
+dge <- DGEList(counts = mat, group = grp)
+keep_g <- filterByExpr(dge, group = grp)
+dge <- dge[keep_g, , keep.lib.sizes = FALSE]
+dge <- calcNormFactors(dge, method = "TMM")
+message("genes after expression filter: ", nrow(dge))
+
+design <- model.matrix(~ 0 + grp); colnames(design) <- levels(grp)
+v   <- voom(dge, design)
+fit <- lmFit(v, design)
+fit <- contrasts.fit(fit, makeContrasts(HD_vs_Control = HD - Control, levels = design))
+fit <- eBayes(fit)
+
+tt <- topTable(fit, coef = "HD_vs_Control", number = Inf, sort.by = "P")
+tt$gene_symbol <- rownames(tt)
+tt <- tt[, c("gene_symbol","logFC","AveExpr","t","P.Value","adj.P.Val","B")]
+
+## ---- significant subset ----
+sig <- subset(tt, adj.P.Val < ADJ_P & abs(logFC) > LFC_MIN)
+sig <- sig[order(-abs(sig$logFC)), ]
+
+## ---- write ----
+write.csv(tt,  file.path(OUT, "deg_cortex_full.csv"),        row.names = FALSE)
+write.csv(sig, file.path(OUT, "deg_cortex_significant.csv"), row.names = FALSE)
+writeLines(sig$gene_symbol, file.path(OUT, "deg_cortex_symbols.txt"))   # <- netcontrol input
+
+message("\n", strrep("=",60))
+message("  DEG (HD vs Control, BA9 cortex)")
+message("  total tested genes : ", nrow(tt))
+message("  significant (adj.P<", ADJ_P, ", |logFC|>", LFC_MIN, "): ", nrow(sig),
+        "  (up=", sum(sig$logFC>0), "  down=", sum(sig$logFC<0), ")")
+message("  outputs in ", OUT)
+message("  -> paste deg_cortex_symbols.txt into netcontrol to build the GRN.")
+message("  -> deg_cortex_significant.csv (logFC, adj.P) is the DEG-module reference for 04/05.")
+message(strrep("=",60))

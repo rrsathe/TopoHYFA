@@ -1,0 +1,278 @@
+> #!/usr/bin/env Rscript
+> ## =============================================================================
+> ## 01_survey_recount3.R   [run order: 01]
+> ## Survey recount3 for a disease application: what TISSUE, matched NORMAL, and
+> ## WHOLE BLOOD transcriptomes are available.
+> ##
+> ##   - GTEx  (tissue + blood, within-donor paired) : enumerated in full, no download
+> ##   - TCGA  (tumour + adjacent normal)            : enumerated in full, no download
+> ##   - SRA   (candidate disease-blood / -tissue)   : inspected on demand per study
+> ##
+> ## Fill SRA_CANDIDATES / TCGA_SHORTLIST near the bottom with accessions from your
+> ## own GEO/SRA search, then re-run. recount3 is a frozen ~Oct-2019 snapshot, so any
+> ## study you list must predate that.
+> ##
+> ## Produces (under <project_root>/survey/):
+> ##   gtex_tissues.csv            every GTEx tissue + sample count, BLOOD flagged
+> ##   tcga_projects.csv           every TCGA project + sample count
+> ##   tcga_sample_types.csv       tumour vs adjacent-normal split for TCGA_SHORTLIST
+> ##   sra_<SRP>_summary.csv       per inspected SRA study: per-sample tissue/disease
+> ##   sra_candidates_summary.csv  one roll-up row per inspected SRA study
+> ##   survey_console.txt          full console log
+> ##
+> ## This is a RECORD. If it errors, fix and re-run top to bottom.
+> ## =============================================================================
+>
+> options(stringsAsFactors = FALSE)
+>
+> ## ---- 0. project root + output dir (discovered, no hardcoded drive) ----------
+> find_project_root <- function() {
++   # RStudio: directory of this (saved) source file
++   if (requireNamespace("rstudioapi", quietly = TRUE)) {
++     p <- tryCatch(rstudioapi::getSourceEditorContext()$path, error = function(e) "")
++     if (!is.null(p) && nzchar(p)) return(normalizePath(dirname(p), winslash = "/"))
++   }
++   # Rscript: the --file= argument
++   a <- commandArgs(trailingOnly = FALSE)
++   f <- sub("^--file=", "", a[grep("^--file=", a)])
++   if (length(f) && nzchar(f[1])) return(normalizePath(dirname(f[1]), winslash = "/"))
++   # fallback: current working directory (run from the project root)
++   normalizePath(getwd(), winslash = "/")
++ }
+>
+> ROOT    <- find_project_root()
+> OUT_DIR <- file.path(ROOT, "survey")
+> dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
+> LOGFILE <- file.path(OUT_DIR, "survey_console.txt")
+> if (file.exists(LOGFILE)) file.remove(LOGFILE)
+>
+> LOG <- function(...) {
++   s <- paste0(...)
++   cat(s, "\n", sep = "")
++   cat(s, "\n", sep = "", file = LOGFILE, append = TRUE)
++ }
+> LOG("project root : ", ROOT)
+project root : G:/topo_hyfa/try2
+> LOG("survey output: ", OUT_DIR)
+survey output: G:/topo_hyfa/try2/survey
+>
+> ## ---- 1. packages ------------------------------------------------------------
+> if (!requireNamespace("BiocManager", quietly = TRUE))
++   install.packages("BiocManager", repos = "https://cloud.r-project.org")
+> for (pkg in c("recount3", "SummarizedExperiment"))
++   if (!requireNamespace(pkg, quietly = TRUE)) BiocManager::install(pkg, update = FALSE, ask = FALSE)
+> suppressPackageStartupMessages({
++   library(recount3); library(SummarizedExperiment)
++ })
+Warning messages:
+1: package ‘recount3’ was built under R version 4.5.2
+2: package ‘GenomicRanges’ was built under R version 4.5.2
+3: package ‘S4Vectors’ was built under R version 4.5.3
+>
+> ## ---- 2. recount3 endpoint + cache ------------------------------------------
+> recount3_cache <- tools::R_user_dir("recount3", which = "cache")
+> dir.create(recount3_cache, recursive = TRUE, showWarnings = FALSE)
+> Sys.setenv("RECOUNT3_CACHE" = recount3_cache)
+> options(recount3_url = "http://duffel.rail.bio/recount3")
+>
+> LOG("\n== available_projects(organism = 'human') ==")
+
+== available_projects(organism = 'human') ==
+> proj <- recount3::available_projects(organism = "human")
+2026-07-06 11:57:58.245279 caching file sra.recount_project.MD.gz.
+2026-07-06 11:57:59.163694 caching file gtex.recount_project.MD.gz.
+2026-07-06 11:58:00.453143 caching file tcga.recount_project.MD.gz.
+> if (!"n_samples" %in% colnames(proj)) proj$n_samples <- NA_integer_
+> LOG("total human projects: ", nrow(proj),
++     " | sources: ", paste(sort(unique(proj$file_source)), collapse = ", "))
+total human projects: 8742 | sources: gtex, sra, tcga
+>
+> ## ---- 3. GTEx tissues (training tissue + blood; complete, no download) -------
+> gtex <- proj[proj$file_source == "gtex", , drop = FALSE]
+> gtex <- gtex[order(-gtex$n_samples), , drop = FALSE]
+> gtex_out <- data.frame(
++   project   = gtex$project,
++   n_samples = gtex$n_samples,
++   is_blood  = grepl("BLOOD", gtex$project, ignore.case = TRUE),
++   row.names = NULL
++ )
+> write.csv(gtex_out, file.path(OUT_DIR, "gtex_tissues.csv"), row.names = FALSE)
+> LOG("\n-- GTEx tissues: ", nrow(gtex_out),
++     " (whole-blood present: ", any(gtex_out$is_blood), ") -> survey/gtex_tissues.csv")
+
+-- GTEx tissues: 32 (whole-blood present: TRUE) -> survey/gtex_tissues.csv
+>
+> ## ---- 4. TCGA projects (disease tissue + adjacent normal; complete) ----------
+> tcga <- proj[proj$file_source == "tcga", , drop = FALSE]
+> tcga <- tcga[order(-tcga$n_samples), , drop = FALSE]
+> tcga_out <- data.frame(project = tcga$project, n_samples = tcga$n_samples, row.names = NULL)
+> write.csv(tcga_out, file.path(OUT_DIR, "tcga_projects.csv"), row.names = FALSE)
+> LOG("-- TCGA projects: ", nrow(tcga_out), " -> survey/tcga_projects.csv")
+-- TCGA projects: 33 -> survey/tcga_projects.csv
+> LOG("   (tumour vs adjacent-normal split needs a per-project download;",
++     " use TCGA_SHORTLIST below.)")
+   (tumour vs adjacent-normal split needs a per-project download; use TCGA_SHORTLIST below.)
+>
+> ## ---- 5. helpers: parse SRA sample attributes --------------------------------
+> # recount3 stores SRA phenotype in colData()$sra.sample_attributes as
+> # "key1;;value1|key2;;value2|...". Parse into a long (sample_idx, key, value) frame.
+> parse_attr <- function(x) {
++   parts <- strsplit(ifelse(is.na(x), "", as.character(x)), "\\|")
++   rows <- lapply(seq_along(parts), function(i) {
++     kv <- parts[[i]]
++     kv <- kv[grepl(";;", kv, fixed = TRUE)]
++     if (!length(kv)) return(NULL)
++     sp  <- strsplit(kv, ";;", fixed = TRUE)
++     key <- vapply(sp, function(z) tolower(trimws(z[1])), character(1))
++     val <- vapply(sp, function(z) trimws(paste(z[-1], collapse = ";;")), character(1))
++     data.frame(sample_idx = i, key = key, value = val, stringsAsFactors = FALSE)
++   })
++   do.call(rbind, rows)   # rbind ignores NULLs; returns NULL if all empty
++ }
+>
+> BLOOD_RX     <- "whole blood|peripheral blood|pbmc|buffy|\\bblood\\b"
+> DISEASE_KEYS <- c("disease","diagnosis","condition","phenotype","status",
++                   "disease state","disease_state","subject status","group")
+> TISSUE_KEYS  <- c("tissue","source_name","source name","cell type","cell_type",
++                   "body site","biomaterial","sample type","organ")
+>
+> inspect_sra_study <- function(SRP) {
++   LOG("\n== inspecting SRA study ", SRP, " ==")
++   row <- proj[proj$project == SRP & proj$file_source == "sra", , drop = FALSE]
++   if (nrow(row) == 0L) {
++     LOG("  NOT FOUND in recount3 (frozen ~Oct-2019 snapshot). skip."); return(NULL)
++   }
++   rse <- tryCatch(recount3::create_rse(row),
++                   error = function(e) { LOG("  create_rse failed: ", conditionMessage(e)); NULL })
++   if (is.null(rse)) return(NULL)
++   cd <- as.data.frame(SummarizedExperiment::colData(rse))
++   n  <- nrow(cd)
++   attr_col <- intersect(c("sra.sample_attributes", "sample_attributes"), colnames(cd))[1]
++   kv <- if (!is.na(attr_col)) parse_attr(cd[[attr_col]]) else NULL
++
++   pick_field <- function(keys) {
++     if (is.null(kv)) return(NULL)
++     hit <- kv[kv$key %in% keys, , drop = FALSE]
++     if (!nrow(hit)) return(NULL)
++     best <- names(sort(table(hit$key), decreasing = TRUE))[1]  # key covering most samples
++     v  <- rep(NA_character_, n)
++     hh <- hit[hit$key == best, , drop = FALSE]
++     v[hh$sample_idx] <- hh$value
++     list(key = best, value = v)
++   }
++   tissue  <- pick_field(TISSUE_KEYS)
++   disease <- pick_field(DISEASE_KEYS)
++
++   # blood detection: scan tissue field + all attribute values + any sra.* char cols
++   scan_txt <- c(if (!is.null(tissue)) tissue$value,
++                 if (!is.null(kv)) kv$value,
++                 unlist(lapply(cd[grepl("^sra\\.", colnames(cd))], as.character), use.names = FALSE))
++   blood_hits <- any(grepl(BLOOD_RX, scan_txt, ignore.case = TRUE), na.rm = TRUE)
++
++   tissue_tab  <- if (!is.null(tissue))  sort(table(tissue$value),  decreasing = TRUE) else NULL
++   disease_tab <- if (!is.null(disease)) sort(table(disease$value), decreasing = TRUE) else NULL
++
++   LOG("  samples: ", n)
++   LOG("  tissue field : ", if (!is.null(tissue))  tissue$key  else "<none found>")
++   if (!is.null(tissue_tab))
++     LOG("    ", paste(sprintf("%s=%d", names(head(tissue_tab, 8)), head(tissue_tab, 8)), collapse = " | "))
++   LOG("  disease field: ", if (!is.null(disease)) disease$key else "<none found>")
++   if (!is.null(disease_tab))
++     LOG("    ", paste(sprintf("%s=%d", names(head(disease_tab, 8)), head(disease_tab, 8)), collapse = " | "))
++   LOG("  whole-blood mentioned: ", blood_hits)
++
++   per <- data.frame(
++     sample_id = rownames(cd),
++     tissue    = if (!is.null(tissue))  tissue$value  else NA_character_,
++     disease   = if (!is.null(disease)) disease$value else NA_character_,
++     row.names = NULL
++   )
++   write.csv(per, file.path(OUT_DIR, paste0("sra_", SRP, "_summary.csv")), row.names = FALSE)
++
++   data.frame(
++     SRP = SRP, n_samples = n,
++     tissue_field     = if (!is.null(tissue))  tissue$key  else NA_character_,
++     disease_field    = if (!is.null(disease)) disease$key else NA_character_,
++     n_tissue_levels  = if (!is.null(tissue_tab))  length(tissue_tab)  else 0L,
++     n_disease_levels = if (!is.null(disease_tab)) length(disease_tab) else 0L,
++     whole_blood      = blood_hits,
++     top_tissue       = if (!is.null(tissue_tab))  names(tissue_tab)[1]  else NA_character_,
++     top_disease      = if (!is.null(disease_tab)) names(disease_tab)[1] else NA_character_,
++     row.names = NULL
++   )
++ }
+>
+> ## ---- 6. helper: TCGA tumour / adjacent-normal split (download per project) --
+> tcga_sample_types <- function(project) {
++   LOG("\n== TCGA ", project, " sample types ==")
++   row <- proj[proj$project == project & proj$file_source == "tcga", , drop = FALSE]
++   if (nrow(row) == 0L) { LOG("  not a TCGA project in recount3. skip."); return(NULL) }
++   rse <- tryCatch(recount3::create_rse(row),
++                   error = function(e) { LOG("  create_rse failed: ", conditionMessage(e)); NULL })
++   if (is.null(rse)) return(NULL)
++   cd  <- as.data.frame(SummarizedExperiment::colData(rse))
++   stc <- intersect(c("tcga.cgc_sample_sample_type",
++                      "tcga.gdc_cases.samples.sample_type",
++                      "tcga.xml_sample_type"), colnames(cd))[1]
++   if (is.na(stc)) { LOG("  no sample-type column found."); return(NULL) }
++   tab <- sort(table(cd[[stc]]), decreasing = TRUE)
++   LOG("  field: ", stc)
++   for (i in seq_along(tab)) LOG("    ", names(tab)[i], " = ", tab[i])
++   data.frame(project = project, sample_type = names(tab), n = as.integer(tab), row.names = NULL)
++ }
+>
+> ## ---- 7. YOUR SHORTLISTS — edit these, then re-run ---------------------------
+> ## SRA study accessions (SRPxxxxxx) to inspect: candidate disease WHOLE-BLOOD
+> ## cohorts and/or disease TISSUE cohorts. Find them by searching GEO/SRA for your
+> ## disease + "whole blood" (must predate the ~Oct-2019 recount3 snapshot).
+> SRA_CANDIDATES <- c(
++   # "SRPxxxxxx",   # e.g. disease whole-blood cohort
++   # "SRPyyyyyy"    # e.g. disease tissue cohort
++ )
+>
+> ## TCGA projects to break down into tumour vs adjacent-normal (downloads each).
+> TCGA_SHORTLIST <- c(
++   # "LUAD", "COAD"
++ )
+>
+> ## ---- 8. run inspections -----------------------------------------------------
+> sra_rollup <- NULL
+> for (s in SRA_CANDIDATES) {
++   r <- inspect_sra_study(s)
++   if (!is.null(r)) sra_rollup <- rbind(sra_rollup, r)
++ }
+> if (!is.null(sra_rollup)) {
++   write.csv(sra_rollup, file.path(OUT_DIR, "sra_candidates_summary.csv"), row.names = FALSE)
++   LOG("\n-> survey/sra_candidates_summary.csv (", nrow(sra_rollup), " studies)")
++ } else {
++   LOG("\n(no SRA candidates inspected — fill SRA_CANDIDATES and re-run)")
++ }
+
+(no SRA candidates inspected — fill SRA_CANDIDATES and re-run)
+>
+> tcga_rollup <- NULL
+> for (p in TCGA_SHORTLIST) {
++   r <- tcga_sample_types(p)
++   if (!is.null(r)) tcga_rollup <- rbind(tcga_rollup, r)
++ }
+> if (!is.null(tcga_rollup))
++   write.csv(tcga_rollup, file.path(OUT_DIR, "tcga_sample_types.csv"), row.names = FALSE)
+>
+> ## ---- 9. what to decide next -------------------------------------------------
+> LOG("\n", strrep("=", 70))
+
+======================================================================
+> LOG(" SURVEY DONE. To lock the application, for ONE disease you need:")
+ SURVEY DONE. To lock the application, for ONE disease you need:
+> LOG("   [tissue] disease tissue transcriptomes  (TCGA tumour+normal, or an SRA study)")
+   [tissue] disease tissue transcriptomes  (TCGA tumour+normal, or an SRA study)
+> LOG("   [blood]  disease whole-blood transcriptomes (an SRA study)")
+   [blood]  disease whole-blood transcriptomes (an SRA study)
+> LOG("   [train]  GTEx healthy tissue + blood, paired  -> always available")
+   [train]  GTEx healthy tissue + blood, paired  -> always available
+> LOG(" Binding constraint: a disease with BOTH tissue AND whole-blood data in-snapshot.")
+ Binding constraint: a disease with BOTH tissue AND whole-blood data in-snapshot.
+> LOG(" Outputs in: ", OUT_DIR)
+ Outputs in: G:/topo_hyfa/try2/survey
+> LOG(strrep("=", 70))
+======================================================================

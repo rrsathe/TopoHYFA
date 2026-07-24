@@ -1,0 +1,144 @@
+(topohyfa) G:\topo_hyfa\try2>python 02a_gtex_cortex_recoverability.py
+HYFA repo   : G:\topo_hyfa\try2\HYFA-main\HYFA-main
+launched in : G:\topo_hyfa\try2
+outputs to  : G:\topo_hyfa\try2\recoverability
+
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_csv from `anndata` is deprecated. Import anndata.io.read_csv instead.
+  warnings.warn(msg, FutureWarning)
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_excel from `anndata` is deprecated. Import anndata.io.read_excel instead.
+  warnings.warn(msg, FutureWarning)
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_hdf from `anndata` is deprecated. Import anndata.io.read_hdf instead.
+  warnings.warn(msg, FutureWarning)
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_loom from `anndata` is deprecated. Import anndata.io.read_loom instead.
+  warnings.warn(msg, FutureWarning)
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_mtx from `anndata` is deprecated. Import anndata.io.read_mtx instead.
+  warnings.warn(msg, FutureWarning)
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_text from `anndata` is deprecated. Import anndata.io.read_text instead.
+  warnings.warn(msg, FutureWarning)
+C:\Users\Amay\miniconda3\envs\topohyfa\lib\site-packages\anndata\utils.py:434: FutureWarning: Importing read_umi_tools from `anndata` is deprecated. Import anndata.io.read_umi_tools instead.
+  warnings.warn(msg, FutureWarning)
+loading authors' GTEx adata ...
+G:\topo_hyfa\try2\HYFA-main\HYFA-main\train_gtex.py:69: ImplicitModificationWarning: Trying to modify attribute `.obs` of view, initializing view as actual.
+  adata.obs['Tissue_idx'], tissue_dict = map_to_ids(adata.obs['Tissue'].values)
+pretrained HYFA loaded.
+
+source: Whole_Blood | 48 target tissues | brain: 13 | cortex-like: Brain_Cortex, Brain_Frontal_Cortex
+
+G:\topo_hyfa\try2\HYFA-main\HYFA-main\src\data.py:34: FutureWarning: Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+  self.source[k.replace('_idx', '')] = torch.tensor(v)
+G:\topo_hyfa\try2\HYFA-main\HYFA-main\src\data.py:50: FutureWarning: Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+  self.target[k.replace('_idx', '')] = torch.tensor(v)
+  Adipose_Subcutaneous         n= 471  median_r= 0.506  frac>0.3= 96.2%  frac>0.1=100.0%
+  Adipose_Visceral_Omentum     n= 386  median_r= 0.539  frac>0.3= 96.7%  frac>0.1=100.0%
+  Adrenal_Gland                n= 193  median_r= 0.483  frac>0.3= 86.9%  frac>0.1= 99.3%
+  Artery_Aorta                 n= 325  median_r= 0.518  frac>0.3= 94.7%  frac>0.1= 99.9%
+  Artery_Coronary              n= 176  median_r= 0.514  frac>0.3= 94.8%  frac>0.1= 99.9%
+  Artery_Tibial                n= 482  median_r= 0.507  frac>0.3= 96.7%  frac>0.1=100.0%
+  Brain_Amygdala               n=  92  median_r= 0.469  frac>0.3= 87.8%  frac>0.1= 99.3%
+  Brain_Anterior_cingulate     n= 108  median_r= 0.509  frac>0.3= 93.2%  frac>0.1= 99.7%
+  Brain_Caudate                n= 145  median_r= 0.493  frac>0.3= 92.1%  frac>0.1= 99.5%
+  Brain_Cerebellar             n= 137  median_r= 0.503  frac>0.3= 93.5%  frac>0.1= 99.8%
+  Brain_Cerebellum             n= 166  median_r= 0.456  frac>0.3= 88.9%  frac>0.1= 99.6%
+  Brain_Cortex                 n= 152  median_r= 0.449  frac>0.3= 89.1%  frac>0.1= 99.7%
+  Brain_Frontal_Cortex         n= 133  median_r= 0.537  frac>0.3= 96.1%  frac>0.1= 99.8%
+  Brain_Hippocampus            n= 128  median_r= 0.417  frac>0.3= 83.5%  frac>0.1= 99.4%
+  Brain_Hypothalamus           n= 124  median_r= 0.375  frac>0.3= 73.0%  frac>0.1= 98.4%
+  Brain_Nucleus                n= 156  median_r= 0.481  frac>0.3= 92.9%  frac>0.1= 99.7%
+  Brain_Putamen                n= 131  median_r= 0.459  frac>0.3= 90.2%  frac>0.1= 99.7%
+  Brain_Spinal_cord            n= 101  median_r= 0.361  frac>0.3= 67.5%  frac>0.1= 96.8%
+  Brain_Substantia_nigra       n=  91  median_r= 0.452  frac>0.3= 86.1%  frac>0.1= 98.9%
+  Breast_Mammary_Tissue        n= 325  median_r= 0.468  frac>0.3= 91.2%  frac>0.1= 99.9%
+  Cells_Cultured               n= 412  median_r= 0.488  frac>0.3= 88.3%  frac>0.1= 99.8%
+  Cells_EBV                    n= 140  median_r= 0.224  frac>0.3= 28.7%  frac>0.1= 81.4%
+  Colon_Sigmoid                n= 271  median_r= 0.531  frac>0.3= 96.4%  frac>0.1=100.0%
+  Colon_Transverse             n= 308  median_r= 0.514  frac>0.3= 97.8%  frac>0.1=100.0%
+  Esophagus_Gastro             n= 275  median_r= 0.561  frac>0.3= 96.5%  frac>0.1= 99.9%
+  Esophagus_Mucosa             n= 410  median_r= 0.469  frac>0.3= 91.1%  frac>0.1= 99.9%
+  Esophagus_Muscularis         n= 384  median_r= 0.601  frac>0.3= 97.7%  frac>0.1= 99.9%
+  Heart_Atrial                 n= 298  median_r= 0.547  frac>0.3= 96.5%  frac>0.1= 99.9%
+  Heart_L_Vent                 n= 324  median_r= 0.590  frac>0.3= 97.2%  frac>0.1=100.0%
+  Kidney_Cortex                n=  62  median_r= 0.423  frac>0.3= 73.3%  frac>0.1= 93.7%
+  Liver                        n= 166  median_r= 0.523  frac>0.3= 89.7%  frac>0.1= 99.3%
+  Lung                         n= 418  median_r= 0.553  frac>0.3= 96.6%  frac>0.1=100.0%
+  Minor_Salivary               n= 128  median_r= 0.393  frac>0.3= 75.1%  frac>0.1= 98.1%
+  Muscle_Skeletal              n= 571  median_r= 0.564  frac>0.3= 96.9%  frac>0.1=100.0%
+  Nerve_Tibial                 n= 436  median_r= 0.529  frac>0.3= 97.2%  frac>0.1=100.0%
+  Ovary                        n= 137  median_r= 0.468  frac>0.3= 84.7%  frac>0.1= 98.5%
+  Pancreas                     n= 257  median_r= 0.475  frac>0.3= 90.9%  frac>0.1= 99.6%
+  Pituitary                    n= 195  median_r= 0.393  frac>0.3= 75.0%  frac>0.1= 97.9%
+  Prostate                     n= 189  median_r= 0.436  frac>0.3= 85.4%  frac>0.1= 99.2%
+  Skin_Not_Sun_Epsd            n= 412  median_r= 0.460  frac>0.3= 95.6%  frac>0.1=100.0%
+  Skin_Sun_Epsd                n= 494  median_r= 0.494  frac>0.3= 97.4%  frac>0.1=100.0%
+  Small_Intestine              n= 150  median_r= 0.522  frac>0.3= 95.5%  frac>0.1= 99.9%
+  Spleen                       n= 191  median_r= 0.492  frac>0.3= 91.9%  frac>0.1= 99.5%
+  Stomach                      n= 270  median_r= 0.481  frac>0.3= 96.0%  frac>0.1=100.0%
+  Testis                       n= 271  median_r= 0.495  frac>0.3= 90.9%  frac>0.1= 99.8%
+  Thyroid                      n= 457  median_r= 0.524  frac>0.3= 96.4%  frac>0.1=100.0%
+  Uterus                       n= 110  median_r= 0.507  frac>0.3= 89.4%  frac>0.1= 99.1%
+  Vagina                       n= 116  median_r= 0.447  frac>0.3= 85.1%  frac>0.1= 99.2%
+
+==========================================================================
+PER-GENE RECOVERABILITY FROM BLOOD  (median r, worst -> best)
+==========================================================================
+   1/48  Cells_EBV                    median_r= 0.224  frac>0.3= 28.7%
+   2/48  Brain_Spinal_cord            median_r= 0.361  frac>0.3= 67.5%   <-- brain
+   3/48  Brain_Hypothalamus           median_r= 0.375  frac>0.3= 73.0%   <-- brain
+   4/48  Minor_Salivary               median_r= 0.393  frac>0.3= 75.1%
+   5/48  Pituitary                    median_r= 0.393  frac>0.3= 75.0%
+   6/48  Brain_Hippocampus            median_r= 0.417  frac>0.3= 83.5%   <-- brain
+   7/48  Kidney_Cortex                median_r= 0.423  frac>0.3= 73.3%
+   8/48  Prostate                     median_r= 0.436  frac>0.3= 85.4%
+   9/48  Vagina                       median_r= 0.447  frac>0.3= 85.1%
+  10/48  Brain_Cortex                 median_r= 0.449  frac>0.3= 89.1%   <-- brain
+  11/48  Brain_Substantia_nigra       median_r= 0.452  frac>0.3= 86.1%   <-- brain
+  12/48  Brain_Cerebellum             median_r= 0.456  frac>0.3= 88.9%   <-- brain
+  13/48  Brain_Putamen                median_r= 0.459  frac>0.3= 90.2%   <-- brain
+  14/48  Skin_Not_Sun_Epsd            median_r= 0.460  frac>0.3= 95.6%
+  15/48  Breast_Mammary_Tissue        median_r= 0.468  frac>0.3= 91.2%
+  16/48  Ovary                        median_r= 0.468  frac>0.3= 84.7%
+  17/48  Brain_Amygdala               median_r= 0.469  frac>0.3= 87.8%   <-- brain
+  18/48  Esophagus_Mucosa             median_r= 0.469  frac>0.3= 91.1%
+  19/48  Pancreas                     median_r= 0.475  frac>0.3= 90.9%
+  20/48  Stomach                      median_r= 0.481  frac>0.3= 96.0%
+  21/48  Brain_Nucleus                median_r= 0.481  frac>0.3= 92.9%   <-- brain
+  22/48  Adrenal_Gland                median_r= 0.483  frac>0.3= 86.9%
+  23/48  Cells_Cultured               median_r= 0.488  frac>0.3= 88.3%
+  24/48  Spleen                       median_r= 0.492  frac>0.3= 91.9%
+  25/48  Brain_Caudate                median_r= 0.493  frac>0.3= 92.1%   <-- brain
+  26/48  Skin_Sun_Epsd                median_r= 0.494  frac>0.3= 97.4%
+  27/48  Testis                       median_r= 0.495  frac>0.3= 90.9%
+  28/48  Brain_Cerebellar             median_r= 0.503  frac>0.3= 93.5%   <-- brain
+  29/48  Adipose_Subcutaneous         median_r= 0.506  frac>0.3= 96.2%
+  30/48  Artery_Tibial                median_r= 0.507  frac>0.3= 96.7%
+  31/48  Uterus                       median_r= 0.507  frac>0.3= 89.4%
+  32/48  Brain_Anterior_cingulate     median_r= 0.509  frac>0.3= 93.2%   <-- brain
+  33/48  Colon_Transverse             median_r= 0.514  frac>0.3= 97.8%
+  34/48  Artery_Coronary              median_r= 0.514  frac>0.3= 94.8%
+  35/48  Artery_Aorta                 median_r= 0.518  frac>0.3= 94.7%
+  36/48  Small_Intestine              median_r= 0.522  frac>0.3= 95.5%
+  37/48  Liver                        median_r= 0.523  frac>0.3= 89.7%
+  38/48  Thyroid                      median_r= 0.524  frac>0.3= 96.4%
+  39/48  Nerve_Tibial                 median_r= 0.529  frac>0.3= 97.2%
+  40/48  Colon_Sigmoid                median_r= 0.531  frac>0.3= 96.4%
+  41/48  Brain_Frontal_Cortex         median_r= 0.537  frac>0.3= 96.1%   <-- brain
+  42/48  Adipose_Visceral_Omentum     median_r= 0.539  frac>0.3= 96.7%
+  43/48  Heart_Atrial                 median_r= 0.547  frac>0.3= 96.5%
+  44/48  Lung                         median_r= 0.553  frac>0.3= 96.6%
+  45/48  Esophagus_Gastro             median_r= 0.561  frac>0.3= 96.5%
+  46/48  Muscle_Skeletal              median_r= 0.564  frac>0.3= 96.9%
+  47/48  Heart_L_Vent                 median_r= 0.590  frac>0.3= 97.2%
+  48/48  Esophagus_Muscularis         median_r= 0.601  frac>0.3= 97.7%
+
+--------------------------------------------------------------------------
+CORTEX GATE  [Brain_Cortex]
+  median per-gene r = 0.449 | recoverable: 89.1% (r>0.3), 99.7% (r>0.1) | rank 10/48 (1=worst)
+  -> 89.1% of cortex genes recoverable (r>0.3): real headroom exists. Proceed;
+     confirm at 05 that the HD module falls in the recoverable set.
+CORTEX GATE  [Brain_Frontal_Cortex]   (BA9 = the HD tissue leg)
+  median per-gene r = 0.537 | recoverable: 96.1% (r>0.3), 99.8% (r>0.1) | rank 41/48 (1=worst)
+  -> 96.1% of cortex genes recoverable (r>0.3): real headroom exists. Proceed;
+     confirm at 05 that the HD module falls in the recoverable set.
+--------------------------------------------------------------------------
+outputs in: G:\topo_hyfa\try2\recoverability
+
+(topohyfa) G:\topo_hyfa\try2>

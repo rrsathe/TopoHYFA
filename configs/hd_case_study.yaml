@@ -1,0 +1,68 @@
+study:
+  name: topohyfa_hd_case_study
+  disease: Huntington's disease
+  conference: IEEE CMES 2027
+  venue: Indian Institute of Technology Guwahati, Assam, India
+  dates: 2027-01-21/2027-01-23
+  submission_deadline: 2026-08-03
+  camera_ready_deadline: 2026-11-23
+
+reproducibility:
+  seed: 0
+  python: ">=3.10,<3.12"
+  primary_environment: uv.lock
+  deterministic_training: true
+  notes:
+    - TopoHYFA training uses src.train_utils.seed_everything.
+    - HD classification uses StratifiedKFold with random_state=0 by default.
+
+datasets:
+  gtex_expression:
+    required_file: data/GTEX_data.csv
+    public_download: https://figshare.com/ndownloader/files/40208074
+    access: public
+  gtex_subject_phenotypes:
+    required_file: data/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt
+    public_download: https://storage.googleapis.com/adult-gtex/annotations/v8/metadata-files/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt
+    access: public
+  hd_blood:
+    description: SRP032279 whole-blood RNA-seq phenotype and count matrices prepared by hd_case_study/02_collect_data.R.
+    restricted: false
+    repository_policy: raw external data are not committed
+  hd_cortex_ba9:
+    description: HD and control BA9 cortex expression prepared by hd_case_study/02_collect_data.R and DEG scripts.
+    repository_policy: raw external data are not committed
+
+topohyfa_model:
+  pretrained_checkpoint: data/normalised_model_default.pth
+  source_tissue: Whole_Blood
+  target_tissue: Brain_Frontal_Cortex
+  target_region: BA9 frontal cortex
+
+hd_pipeline:
+  case_directory: hd_case_study
+  stages:
+    - 02a_gtex_cortex_recoverability.py
+    - 02b_blood_labels.py
+    - 05_grn_lcc.py
+    - 06b_impute_ba9_from_blood.py
+    - 06c_gene_coverage.py
+    - 06a_grn_model_cortex.py --imputable-only
+    - 06b_classify.py
+    - 06d_imputation_diagnostic.py
+  classification:
+    folds: 5
+    seed: 0
+    shrink: 2.0
+    contrasts:
+      - manifest
+      - carrier
+
+expected_outputs:
+  recoverability: hd_case_study/recoverability/gate_verdict.json
+  imputed_ba9: hd_case_study/prep/hd_blood_imputed_ba9.csv
+  gene_coverage: hd_case_study/grn/gene_coverage.csv
+  classification: hd_case_study/grn/classify/classify_results.csv
+  diagnostic: hd_case_study/grn/imputation_diagnostic.txt
+  paper_table: paper/tables/hd_classification_results.csv
+  paper_figure: paper/figures/hd_topology_auc_increment.png
